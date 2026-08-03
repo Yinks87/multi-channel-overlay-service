@@ -1,0 +1,19 @@
+{
+    "version": "0.2",
+    "ignorePaths": [],
+    "dictionaryDefinitions": [],
+    "dictionaries": [],
+    "words": [
+        "AUTOINCREMENT",
+        "COLUMNNAME",
+        "dflt",
+        "eventsub",
+        "eventsubs",
+        "notnull",
+        "SPAMMY",
+        "uuidv",
+        "Yinkzs"
+    ],
+    "ignoreWords": [],
+    "import": []
+}
