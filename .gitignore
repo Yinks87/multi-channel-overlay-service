@@ -1,4 +1,4 @@
 # Docker runtime data — never commit
-.env
+.env*
 data/
 overlays/

@@ -47,6 +47,7 @@ section "Server Configuration"
 ask DOMAIN        "Domain or server IP" "localhost"
 ask BACKEND_PORT  "Backend port"        "3000"
 ask FRONTEND_PORT "Frontend (nginx) port" "80"
+ask JWT EXPIRY      "JWT expiry (e.g. 7d, 12h)" "7d"
 
 PROTOCOL="http"
 if ask_yn "Use HTTPS?"; then
@@ -70,7 +71,9 @@ JWT_SECRET=$(openssl rand -hex 32 2>/dev/null \
   || tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64)
 echo -e "  JWT secret generated ✓"
 
-# TODO: Update Twitch scopes to include all necessary permissions for EventSub and other features
+EVENTSUB_WEBHOOK_SECRET=$(openssl rand -hex 16 2>/dev/null \
+  || tr -dc 'A-Za-z0-9' </dev/urandom | head -c 64)
+echo -e "  EventSub webhook secret generated ✓"
 
 # ── backend/.env ──────────────────────────────────────────────────────────────
 section "Writing backend/.env"
@@ -84,12 +87,13 @@ TWITCH_CLIENT_SECRET=${TWITCH_CLIENT_SECRET}
 TWITCH_OWNER_ID=${TWITCH_OWNER_ID}
 TWITCH_REDIRECT_URI=api/v1/twitch/auth
 TWITCH_AUTH_REDIRECT_URL=${TWITCH_CALLBACK_URL}
-TWITCH_SCOPES=user:read:moderated_channels user:read:email
+TWITCH_SCOPES=user:read:chat channel:read:redemptions moderator:read:moderators user:read:moderated_channels moderation:read bits:read channel:read:subscriptions user:bot
+EVENTSUB_WEBHOOK_SECRET=${EVENTSUB_WEBHOOK_SECRET}
 
 FRONTEND_ORIGIN=${FRONTEND_URL}
 
 JWT_SECRET=${JWT_SECRET}
-JWT_EXPIRY=7d
+JWT_EXPIRY=${JWT_EXPIRY}
 
 DB_PATH=/app/data/db.sqlite
 EOF
