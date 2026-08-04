@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import styled from '@emotion/styled';
+import process from 'process';
 import {
   Alert,
   Autocomplete,
@@ -43,6 +44,8 @@ import { useAlert } from '../contexts/AlertContext';
 import api from '../api/api';
 import FormDialog from '../components/FormDialog';
 import { fetchRegisteredStreamers } from '../api/registeredStreamerApi';
+
+const system = import.meta.env.VITE_PLATFORM;
 
 const BACKEND_ORIGIN = api.defaults.baseURL;
 const SERVICE_URL =
@@ -594,7 +597,7 @@ const OverlayFormDialog = ({
       if (res.data.path) {
         setForm((p) => ({ ...p, folderPath: res.data.path }));
       }
-    } catch {
+    } catch (error) {
       // silently fail — user can still type the path manually
     } finally {
       setFolderPickerLoading(false);
@@ -784,7 +787,16 @@ const OverlayFormDialog = ({
             value={form.folderPath}
             onChange={set('folderPath')}
             fullWidth
-            placeholder="C:/path/to/overlay-folder"
+            placeholder={
+              system === 'win'
+                ? 'C:/path/to/overlay-folder'
+                : './overlays/overlay-folder'
+            }
+            helperText={
+              system === 'linux'
+                ? 'copy the overlay folder to the /app/overlays/ path'
+                : null
+            }
             slotProps={{
               input: {
                 startAdornment: (
@@ -795,18 +807,20 @@ const OverlayFormDialog = ({
               },
             }}
           />
-          <IconButton
-            onClick={handleOpenFolder}
-            disabled={folderPickerLoading}
-            size="small"
-            sx={{ ml: 1, mt: 0.5 }}
-          >
-            {folderPickerLoading ? (
-              <CircularProgress size={16} />
-            ) : (
-              <FolderOpenIcon fontSize="small" />
-            )}
-          </IconButton>
+          {system === 'win' && (
+            <IconButton
+              onClick={handleOpenFolder}
+              disabled={folderPickerLoading}
+              size="small"
+              sx={{ ml: 1, mt: 0.5 }}
+            >
+              {folderPickerLoading ? (
+                <CircularProgress size={16} />
+              ) : (
+                <FolderOpenIcon fontSize="small" />
+              )}
+            </IconButton>
+          )}
         </Box>
         <TextField
           label="Entry File"

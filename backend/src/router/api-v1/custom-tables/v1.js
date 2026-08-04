@@ -162,6 +162,7 @@ customTablesRouter.post('/:tableName', async (req, res, next) => {
       error: 'Missing or invalid data',
     });
   }
+  console.log('Inserting data into custom table:', tableName, data);
 
   try {
     await insertDataIntoCustomDbTable({ tableName, data });
