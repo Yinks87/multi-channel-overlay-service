@@ -1,4 +1,6 @@
 # Docker runtime data — never commit
 .env*
 data/
-overlays/
+test-overlays/
+cspell.json
+.vscode/
