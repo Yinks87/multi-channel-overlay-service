@@ -33,7 +33,7 @@ const migrations = [
         CREATE TABLE IF NOT EXISTS overlays (
           id TEXT PRIMARY KEY,
           name TEXT NOT NULL,
-          route_path TEXT NOT NULL UNIQUE,
+          route_path TEXT NOT NULL,
           folder_path TEXT NOT NULL,
           entry_file TEXT NOT NULL,
           params TEXT NOT NULL DEFAULT '{}',

@@ -2,7 +2,7 @@ export const getEventTypes = ({ broadcasterId, condition = {} }) => [
   {
     type: 'channel.chat.message',
     version: '1',
-    useUserToken: false, // requires user access token (user:read:chat scope)
+    useUserToken: false,
     condition: {
       broadcaster_user_id: String(broadcasterId),
       user_id: String(broadcasterId),

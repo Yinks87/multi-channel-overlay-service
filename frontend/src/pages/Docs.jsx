@@ -1,8 +1,18 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Box, Chip, Divider, Paper, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  Chip,
+  Divider,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
 import StorageIcon from '@mui/icons-material/Storage';
 import StreamIcon from '@mui/icons-material/Stream';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckIcon from '@mui/icons-material/Check';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { endpointSections } from './assets/rest';
@@ -20,10 +30,106 @@ const categories = [
     icon: StorageIcon,
     subsections: [
       { id: 'rest-endpoints', title: 'REST Endpoints' },
+      { id: 'sse-recurring-snippets', title: 'SSE Recurring Snippets' },
       { id: 'sse-events', title: 'Realtime Events (SSE)' },
     ],
   },
 ];
+
+const recurringSseSnippets = [
+  {
+    id: 'search-params',
+    title: 'Search Params',
+    description: 'Read URL query params once and reuse the values.',
+    code: `// Load params from the URL query string
+const searchParams = new URLSearchParams(window.location.search);
+const param = searchParams.get('param');`,
+  },
+  {
+    id: 'eventsource-open',
+    title: 'EventSource Open',
+    description: 'Log when the SSE connection has been opened.',
+    code: `source.addEventListener('open', () => {
+  console.log('[SSE] Connection opened');
+});`,
+  },
+  {
+    id: 'eventsource-error',
+    title: 'EventSource Error',
+    description: 'Track connection issues and auto-reconnect behavior.',
+    code: `source.addEventListener('error', (e) => {
+  console.error('[SSE] Connection error:', e);
+
+  if (source.readyState === EventSource.CLOSED) {
+    console.warn('[SSE] Connection closed. EventSource will retry automatically.');
+  }
+});`,
+  },
+  {
+    id: 'dom-content-loaded',
+    title: 'DOMContentLoaded',
+    description: 'Fetch initial data after the page has loaded.',
+    code: `window.addEventListener('DOMContentLoaded', async () => {
+  const data = await fetch(
+    'https://<backend-origin.com>/api/v1/custom-tables/row/<table_name>?key=param&keyValue=' +
+      encodeURIComponent(param ?? ''),
+  );
+
+  if (!data.ok) {
+    console.error('[SSE] Failed to fetch initial data:', data.statusText);
+    return;
+  }
+
+  const jsonData = await data.json();
+  const rowData = jsonData.data;
+  updateUI(rowData);
+});`,
+  },
+];
+
+function getTopicBaseSnippet(eventName) {
+  return `// 1) Load params from the URL query string
+const searchParams = new URLSearchParams(window.location.search);
+const param = searchParams.get('param');
+
+// 2) Create an EventSource for the required topic(s)
+const source = new EventSource(
+  '${SSE_ENDPOINT ?? '/clients'}?topics=${eventName}'
+);
+
+// 3) Track connection lifecycle
+source.addEventListener('open', () => {
+  console.log('[SSE] Connection opened');
+});
+
+source.addEventListener('error', (e) => {
+  console.error('[SSE] Connection error:', e);
+});
+
+// 4) Handle this topic
+source.addEventListener('${eventName}', (e) => {
+  const payload = JSON.parse(e.data);
+  console.log('[SSE] ${eventName}', payload);
+  // TODO: update your UI here
+});
+
+// 5) Optional: load initial data before events arrive
+window.addEventListener('DOMContentLoaded', async () => {
+  const data = await fetch(
+    'https://<backend-origin.com>/api/v1/custom-tables/row/<table_name>?key=param&keyValue=' +
+      encodeURIComponent(param ?? ''),
+  );
+
+  if (!data.ok) {
+    console.error('[SSE] Failed to fetch initial data:', data.statusText);
+    return;
+  }
+
+  const jsonData = await data.json();
+  const rowData = jsonData.data;
+  updateUI(rowData);
+});`;
+}
 
 /* ── Shared components ──────────────────────────────────────────────────── */
 
@@ -43,7 +149,10 @@ function useCollapseState(key) {
       const next = !prev;
       try {
         const all = JSON.parse(localStorage.getItem('docs_collapse') ?? '{}');
-        localStorage.setItem('docs_collapse', JSON.stringify({ ...all, [key]: next }));
+        localStorage.setItem(
+          'docs_collapse',
+          JSON.stringify({ ...all, [key]: next }),
+        );
       } catch {}
       return next;
     });
@@ -52,37 +161,103 @@ function useCollapseState(key) {
   return [open, toggle];
 }
 
-function CollapsibleSection({ label, storageKey, children }) {
+function useClipboardState(duration = 2000) {
+  const [copied, setCopied] = useState(false);
+
+  const copy = async (value) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(String(value));
+      } else {
+        const el = document.createElement('textarea');
+        el.value = String(value);
+        el.style.cssText = 'position:fixed;opacity:0;';
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand('copy');
+        document.body.removeChild(el);
+      }
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), duration);
+    } catch {
+      setCopied(false);
+    }
+  };
+
+  return { copied, copy };
+}
+
+function CollapsibleSection({ label, storageKey, children, rightAction }) {
   const [open, toggle] = useCollapseState(storageKey);
   return (
     <Box>
       <Box
-        onClick={toggle}
         sx={{
-          display: 'flex', alignItems: 'center', gap: 0.5,
-          py: 0.75, cursor: 'pointer', userSelect: 'none',
-          '&:hover .col-label': { color: '#fff' },
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
         }}
       >
-        <ChevronRightIcon
+        <Box
+          onClick={toggle}
           sx={{
-            fontSize: 15,
-            color: 'rgba(255,255,255,0.35)',
-            transform: open ? 'rotate(90deg)' : 'none',
-            transition: 'transform 0.15s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 0.5,
+            py: 0.75,
+            cursor: 'pointer',
+            userSelect: 'none',
+            '&:hover .col-label': { color: '#fff' },
+            flex: 1,
           }}
-        />
-        <Typography
-          className="col-label"
-          variant="subtitle2"
-          fontWeight={700}
-          sx={{ color: 'rgba(255,255,255,0.55)', transition: 'color 0.1s', fontSize: 12 }}
         >
-          {label}
-        </Typography>
+          <ChevronRightIcon
+            sx={{
+              fontSize: 15,
+              color: 'rgba(255,255,255,0.35)',
+              transform: open ? 'rotate(90deg)' : 'none',
+              transition: 'transform 0.15s ease',
+            }}
+          />
+          <Typography
+            className="col-label"
+            variant="subtitle2"
+            fontWeight={700}
+            sx={{
+              color: 'rgba(255,255,255,0.55)',
+              transition: 'color 0.1s',
+              fontSize: 12,
+            }}
+          >
+            {label}
+          </Typography>
+        </Box>
+        {rightAction}
       </Box>
       {open && <Box sx={{ mt: 0.25 }}>{children}</Box>}
     </Box>
+  );
+}
+
+function CopyButton({ value, label = 'Copy', size = 'small' }) {
+  const { copied, copy } = useClipboardState();
+
+  return (
+    <Button
+      size={size}
+      variant="outlined"
+      onClick={() => copy(value)}
+      startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
+      color={copied ? 'success' : 'inherit'}
+      sx={{
+        textTransform: 'none',
+        minWidth: 90,
+        borderColor: 'rgba(255,255,255,0.22)',
+      }}
+    >
+      {copied ? 'Copied!' : label}
+    </Button>
   );
 }
 
@@ -191,6 +366,8 @@ function RestEndpointCard({ section }) {
 }
 
 function SseEventCard({ section }) {
+  const topicBaseSnippet = getTopicBaseSnippet(section.event);
+
   return (
     <Paper
       sx={{
@@ -210,6 +387,7 @@ function SseEventCard({ section }) {
         >
           Topic: {section.event}
         </Typography>
+        <CopyButton value={section.event} label="Copy Topic" />
       </Stack>
 
       {section.warning && (
@@ -235,27 +413,69 @@ function SseEventCard({ section }) {
       </Typography>
 
       <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 0.5 }}>
-        Payload (event.data)
+        Snippets
       </Typography>
-      <CollapsibleSection
-        label="Schema"
-        storageKey={`sse_${section.event}_schema`}
-      >
-        <CodeBlock language="typescript">{section.payloadSchema}</CodeBlock>
-      </CollapsibleSection>
-      <CollapsibleSection
-        label="Example"
-        storageKey={`sse_${section.event}_example`}
-      >
-        <CodeBlock language="json">{section.payloadExample}</CodeBlock>
-      </CollapsibleSection>
 
-      <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.08)' }} />
+      <Stack spacing={1.5}>
+        <CollapsibleSection
+          label="Base Layout"
+          storageKey={`sse_${section.event}_base_layout`}
+          rightAction={
+            <CopyButton
+              value={topicBaseSnippet}
+              label="Copy Code"
+              size="small"
+            />
+          }
+        >
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Full starter layout with search params, connection open/error
+            listeners, topic listener and optional DOMContentLoaded preload.
+          </Typography>
+          <CodeBlock language="javascript">{topicBaseSnippet}</CodeBlock>
+        </CollapsibleSection>
 
-      <Typography variant="subtitle2" fontWeight={700} sx={{ mb: 1 }}>
-        Listener
-      </Typography>
-      <CodeBlock language="javascript">{section.listenerSnippet}</CodeBlock>
+        <CollapsibleSection
+          label="Listener"
+          storageKey={`sse_${section.event}_listener`}
+          rightAction={
+            <CopyButton
+              value={section.listenerSnippet}
+              label="Copy Code"
+              size="small"
+            />
+          }
+        >
+          <CodeBlock language="javascript">{section.listenerSnippet}</CodeBlock>
+        </CollapsibleSection>
+
+        <CollapsibleSection
+          label="Payload Schema"
+          storageKey={`sse_${section.event}_schema`}
+          rightAction={
+            <CopyButton
+              value={section.payloadSchema}
+              label="Copy Code"
+              size="small"
+            />
+          }
+        >
+          <CodeBlock language="typescript">{section.payloadSchema}</CodeBlock>
+        </CollapsibleSection>
+        <CollapsibleSection
+          label="Payload Example"
+          storageKey={`sse_${section.event}_example`}
+          rightAction={
+            <CopyButton
+              value={section.payloadExample}
+              label="Copy Code"
+              size="small"
+            />
+          }
+        >
+          <CodeBlock language="json">{section.payloadExample}</CodeBlock>
+        </CollapsibleSection>
+      </Stack>
 
       <Divider sx={{ my: 2, borderColor: 'rgba(255,255,255,0.08)' }} />
 
@@ -267,6 +487,45 @@ function SseEventCard({ section }) {
           <Typography key={note} variant="body2" color="text.secondary">
             - {note}
           </Typography>
+        ))}
+      </Stack>
+    </Paper>
+  );
+}
+
+function RecurringSnippetsCard() {
+  return (
+    <Paper
+      sx={{
+        p: 2.5,
+        mb: 3,
+        bgcolor: 'rgba(124,58,237,0.08)',
+        border: '1px solid rgba(124,58,237,0.2)',
+      }}
+    >
+      <Typography variant="h6" fontWeight={700} gutterBottom>
+        Recurring SSE Snippets
+      </Typography>
+      <Typography variant="body2" sx={{ mb: 2 }}>
+        Reusable building blocks for most overlay scripts. Expand and copy the
+        exact snippets you need.
+      </Typography>
+
+      <Stack spacing={1.5}>
+        {recurringSseSnippets.map((snippet) => (
+          <CollapsibleSection
+            key={snippet.id}
+            label={snippet.title}
+            storageKey={`recurring_${snippet.id}`}
+            rightAction={
+              <CopyButton value={snippet.code} label="Copy Code" size="small" />
+            }
+          >
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+              {snippet.description}
+            </Typography>
+            <CodeBlock language="javascript">{snippet.code}</CodeBlock>
+          </CollapsibleSection>
         ))}
       </Stack>
     </Paper>
@@ -415,6 +674,21 @@ const Docs = () => {
   "keyValue": 7,
   "data": { "message": "Updated value" }
 }`}</CodeBlock>
+              <Stack
+                direction="row"
+                justifyContent="flex-end"
+                sx={{ mt: 1.25 }}
+              >
+                <CopyButton
+                  value={`{
+  "key": "rowid",
+  "keyValue": 7,
+  "data": { "message": "Updated value" }
+}`}
+                  label="Copy Example"
+                  size="small"
+                />
+              </Stack>
             </Paper>
 
             <Stack spacing={3}>
@@ -422,6 +696,30 @@ const Docs = () => {
                 <RestEndpointCard key={`${s.method}-${s.title}`} section={s} />
               ))}
             </Stack>
+          </Box>
+
+          {/* ── SSE Events ── */}
+          <Box
+            ref={(el) => {
+              sectionRefs.current['sse-recurring-snippets'] = el;
+            }}
+            sx={{ mb: 6 }}
+          >
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{ alignItems: 'center', mb: 1 }}
+            >
+              <StreamIcon sx={{ color: '#7c3aed' }} />
+              <Typography variant="h5" fontWeight={800}>
+                SSE Recurring Snippets
+              </Typography>
+            </Stack>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Reusable snippets copied from the common overlay pattern used in
+              moderators.js.
+            </Typography>
+            <RecurringSnippetsCard />
           </Box>
 
           {/* ── SSE Events ── */}
@@ -468,6 +766,17 @@ const Docs = () => {
               <CodeBlock language="javascript">
                 {sseConnectionSnippet}
               </CodeBlock>
+              <Stack
+                direction="row"
+                justifyContent="flex-end"
+                sx={{ mt: 1.25 }}
+              >
+                <CopyButton
+                  value={sseConnectionSnippet}
+                  label="Copy Connection"
+                  size="small"
+                />
+              </Stack>
               <Stack spacing={0.75} sx={{ mt: 2 }}>
                 <Typography variant="body2" color="text.secondary">
                   - The server sends a <code>: ping</code> comment every 25 s to

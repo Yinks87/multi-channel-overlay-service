@@ -59,10 +59,10 @@ async function getAppAccessToken() {
 }
 
 function getWebhookUrl() {
-  const origin = config.BACKEND_PUBLIC_ORIGIN?.replace(/\/$/, '');
+  const origin = config.TWITCH_WEBHOOK_ORIGIN?.replace(/\/$/, '');
   if (!origin) {
     throw new Error(
-      'BACKEND_PUBLIC_ORIGIN is required for webhook subscriptions',
+      'TWITCH_WEBHOOK_ORIGIN (or BACKEND_PUBLIC_ORIGIN) is required for webhook subscriptions',
     );
   }
   return `${origin}/api/v1/twitch/eventsub-webhook`;
@@ -145,6 +145,7 @@ export async function subscribeToChannelEvents({ access_token }) {
 
     const appToken = await getAppAccessToken();
     const webhookUrl = getWebhookUrl();
+    console.log(`[EventSub] Registering webhook callback: ${webhookUrl}`);
     const secret = config.EVENTSUB_WEBHOOK_SECRET;
 
     if (!secret) throw new Error('EVENTSUB_WEBHOOK_SECRET is not configured');
@@ -252,6 +253,7 @@ async function subscribeToEvent({
       }
       console.error(
         `Error subscribing to ${type} for ${broadcaster.display_name} (attempt ${attempt}/${SUBSCRIBE_RETRY_ATTEMPTS}): ${err.message}`,
+        err.response?.data,
       );
       if (attempt === SUBSCRIBE_RETRY_ATTEMPTS) return null;
       await delay(250 * attempt);

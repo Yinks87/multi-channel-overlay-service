@@ -609,15 +609,17 @@ const OverlayFormDialog = ({
     if (!src) return;
     const cloned = {
       name: `${src.name} (copy)`,
-      routePath: '',
+      routePath: src.route_path,
       folderPath: src.folder_path,
       entryFile: src.entry_file,
       notes: src.notes ?? '',
       params: normalizeParams(src.params),
       streamerIds: src.streamer_ids ?? [],
+      overlayType: src.overlay_type ?? ['streamer'],
       width: src.width ?? 800,
       height: src.height ?? 600,
     };
+    console.log('Cloning overlay', src.id, 'to', cloned);
     setForm(cloned);
     setParamRows(toParamRows(cloned.params));
     setError('');
@@ -869,7 +871,7 @@ const OverlayFormDialog = ({
                 <input
                   type="checkbox"
                   id={`ot-${value}`}
-                  checked={form.overlayType.includes(value)}
+                  checked={form?.overlayType?.includes(value)}
                   onChange={(e) => {
                     setForm((p) => ({
                       ...p,

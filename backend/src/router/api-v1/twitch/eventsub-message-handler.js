@@ -7,7 +7,6 @@ export function handleEventSub(eventSub) {
 
   switch (e) {
     case 'channel.chat.message':
-      console.log(eventSub.event);
       (async () => {
         await sendEventToClients({
           event: 'channel.chat.message',

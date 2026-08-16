@@ -1,5 +1,6 @@
 # Docker runtime data — never commit
-.env*
+.env.development
+.env.production
 data/
 test-overlays/
 cspell.json

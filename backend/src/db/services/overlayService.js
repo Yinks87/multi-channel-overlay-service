@@ -95,50 +95,61 @@ export async function createOverlay({
 export async function getOverlaysForStreamer({ userId, roles = [] }) {
   const db = await getDb();
   const overlays = await db.all('SELECT * FROM overlays WHERE active = 1');
-  const userType = roles.includes('moderator') ? 'moderator' : 'streamer';
+  const mapped = overlays.map(mapOverlayRow);
 
-  if (userType === 'streamer') {
-    return overlays.map(mapOverlayRow).filter((o) => {
-      const ids = o.streamer_ids;
-      if (ids.length > 0 && !ids.includes(userId)) return false;
-      return o.overlay_type.includes('streamer');
-    });
+  const isStreamer = roles.includes('streamer');
+  const isModerator = roles.includes('moderator');
+  // keyed by overlay id to avoid duplicates when a user holds both roles
+  const resultMap = new Map();
+
+  if (isStreamer || (!isStreamer && !isModerator)) {
+    mapped
+      .filter((o) => {
+        const ids = o.streamer_ids;
+        if (ids.length > 0 && !ids.includes(userId)) return false;
+        return o.overlay_type.includes('streamer');
+      })
+      .forEach((o) => resultMap.set(o.id, o));
   }
 
-  // Moderator: resolve which registered streamer DB IDs this user moderates
-  const userRow = await db.get(
-    'SELECT moderatedChannels FROM users WHERE id = ?',
-    userId,
-  );
-  let moderatedChannels = [];
-  try {
-    moderatedChannels = JSON.parse(userRow?.moderatedChannels || '[]');
-  } catch { /* ignore */ }
-
-  const moderatedTwitchIds = new Set(
-    moderatedChannels.map((ch) => String(ch.broadcaster_id)),
-  );
-
-  const streamerRows = await db.all(
-    `SELECT users.id, json_extract(twitch, '$.id') AS twitch_id
-     FROM users, json_each(users.roles) j
-     WHERE j.value = 'streamer' AND twitch_id IS NOT NULL`,
-  );
-  const moderatedStreamerDbIds = new Set(
-    streamerRows
-      .filter((s) => moderatedTwitchIds.has(String(s.twitch_id)))
-      .map((s) => s.id),
-  );
-
-  return overlays.map(mapOverlayRow).filter((o) => {
-    if (!o.overlay_type.includes('moderator')) return false;
-    // If the overlay is assigned to specific streamers, the moderator must
-    // moderate at least one of those streamers to see it.
-    return (
-      o.streamer_ids.length === 0 ||
-      o.streamer_ids.some((id) => moderatedStreamerDbIds.has(id))
+  if (isModerator) {
+    // Resolve which registered streamer DB IDs this user moderates
+    const userRow = await db.get(
+      'SELECT moderatedChannels FROM users WHERE id = ?',
+      userId,
     );
-  });
+    let moderatedChannels = [];
+    try {
+      moderatedChannels = JSON.parse(userRow?.moderatedChannels || '[]');
+    } catch { /* ignore */ }
+
+    const moderatedTwitchIds = new Set(
+      moderatedChannels.map((ch) => String(ch.broadcaster_id)),
+    );
+
+    const streamerRows = await db.all(
+      `SELECT users.id, json_extract(twitch, '$.id') AS twitch_id
+       FROM users, json_each(users.roles) j
+       WHERE j.value = 'streamer' AND twitch_id IS NOT NULL`,
+    );
+    const moderatedStreamerDbIds = new Set(
+      streamerRows
+        .filter((s) => moderatedTwitchIds.has(String(s.twitch_id)))
+        .map((s) => s.id),
+    );
+
+    mapped
+      .filter((o) => {
+        if (!o.overlay_type.includes('moderator')) return false;
+        return (
+          o.streamer_ids.length === 0 ||
+          o.streamer_ids.some((id) => moderatedStreamerDbIds.has(id))
+        );
+      })
+      .forEach((o) => resultMap.set(o.id, o));
+  }
+
+  return [...resultMap.values()];
 }
 
 export async function getActiveOverlays() {

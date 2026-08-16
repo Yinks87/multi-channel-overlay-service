@@ -126,6 +126,7 @@ export async function updateDataInCustomDbTable({
     keyValue,
   );
 
+
   await sendEventToClients({
     event: 'custom_db_table:update',
     data: {

@@ -1,3 +1,5 @@
+import MenuIcon from '@mui/icons-material/Menu';
+import CloseIcon from '@mui/icons-material/Close';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LayersIcon from '@mui/icons-material/Layers';
@@ -14,7 +16,7 @@ import {
   useTheme,
 } from '@mui/material';
 import styled from '@emotion/styled';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 const NAV_ITEMS = [
@@ -106,167 +108,187 @@ const Main = () => {
   };
 
   const initials = currentUser?.userName?.[0]?.toUpperCase() ?? '?';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  // close sidebar after navigation on mobile (no-op on desktop)
+  const handleNavClick = (path) => { navigate(path); setSidebarOpen(false); };
+
+  const sidebarContent = (onNavClick) => (
+    <>
+      <SidebarTop>
+        <AppTitle>
+          <Typography
+            variant="caption"
+            sx={{
+              opacity: 0.45,
+              fontWeight: 700,
+              letterSpacing: 1,
+              textTransform: 'uppercase',
+            }}
+          >
+            Multi-Channel
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            fontWeight={800}
+            sx={{ lineHeight: 1.1, letterSpacing: '-0.3px' }}
+          >
+            Overlay Service
+          </Typography>
+        </AppTitle>
+
+        <UserCard>
+          <Avatar
+            src={currentUser?.profileImageUrl}
+            sx={{
+              width: 44,
+              height: 44,
+              fontWeight: 700,
+              bgcolor: '#309abd',
+              fontSize: 18,
+            }}
+          >
+            {initials}
+          </Avatar>
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {currentUser?.userName}
+            </Typography>
+            <Box
+              sx={{ display: 'flex', gap: 0.5, mt: 0.4, flexWrap: 'wrap' }}
+            >
+              {displayRoles.map((r) => {
+                const colorMap = {
+                  owner: theme.palette.owner.main,
+                  streamer: theme.palette.streamer.main,
+                  moderator: theme.palette.moderator.main,
+                  admin: theme.palette.admin.main,
+                };
+
+                return (
+                  <Chip
+                    key={r}
+                    label={r}
+                    size="small"
+                    sx={{
+                      height: 17,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      bgcolor: `${colorMap[r] ?? '#555'}22`,
+                      color: colorMap[r] ?? '#aaa',
+                      border: `1px solid ${colorMap[r] ?? '#555'}55`,
+                      textTransform: 'capitalize',
+                    }}
+                  />
+                );
+              })}
+            </Box>
+          </Box>
+        </UserCard>
+
+        <Divider
+          sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
+        />
+
+        <NavList>
+          {visibleNav.map((item) => {
+            const active = location.pathname === item.path;
+            return (
+              <Tooltip
+                key={item.path}
+                title={item.label}
+                placement="right"
+                disableHoverListener
+              >
+                <Box
+                  onClick={() => onNavClick(item.path)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1.25,
+                    px: 1.5,
+                    py: '9px',
+                    mx: 0.5,
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontSize: '13.5px',
+                    fontWeight: active ? 600 : 400,
+                    color: active ? '#fff' : 'rgba(255,255,255,0.5)',
+                    bgcolor: active ? 'rgba(48,154,189,0.14)' : 'transparent',
+                    borderLeft: `3px solid ${active ? '#309abd' : 'transparent'}`,
+                    transition: 'all 0.14s ease',
+                    userSelect: 'none',
+                    '&:hover': {
+                      bgcolor: active
+                        ? 'rgba(48,154,189,0.2)'
+                        : 'rgba(255,255,255,0.05)',
+                      color: '#fff',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      color: active ? '#309abd' : 'inherit',
+                      transition: 'color 0.14s ease',
+                    }}
+                  >
+                    {item.icon}
+                  </Box>
+                  {item.label}
+                </Box>
+              </Tooltip>
+            );
+          })}
+        </NavList>
+      </SidebarTop>
+
+      <SidebarBottom>
+        <Divider
+          sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
+        />
+        <Box
+          onClick={handleLogout}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.25,
+            px: 1.5,
+            py: '9px',
+            mx: 0.5,
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '13.5px',
+            color: 'rgba(255,255,255,0.4)',
+            transition: 'all 0.14s ease',
+            userSelect: 'none',
+            '&:hover': { bgcolor: 'rgba(255,80,80,0.1)', color: '#ff6b6b' },
+          }}
+        >
+          <LogoutIcon sx={{ fontSize: 18 }} />
+          Logout
+        </Box>
+      </SidebarBottom>
+    </>
+  );
 
   return (
     <Layout>
       {/* ── Sidebar ───────────────────────────────────────────── */}
-      <Sidebar>
-        <SidebarTop>
-          <AppTitle>
-            <Typography
-              variant="caption"
-              sx={{
-                opacity: 0.45,
-                fontWeight: 700,
-                letterSpacing: 1,
-                textTransform: 'uppercase',
-              }}
-            >
-              Multi-Channel
-            </Typography>
-            <Typography
-              variant="subtitle1"
-              fontWeight={800}
-              sx={{ lineHeight: 1.1, letterSpacing: '-0.3px' }}
-            >
-              Overlay Service
-            </Typography>
-          </AppTitle>
-
-          <UserCard>
-            <Avatar
-              src={currentUser?.profileImageUrl}
-              sx={{
-                width: 44,
-                height: 44,
-                fontWeight: 700,
-                bgcolor: '#309abd',
-                fontSize: 18,
-              }}
-            >
-              {initials}
-            </Avatar>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="body2" fontWeight={600} noWrap>
-                {currentUser?.userName}
-              </Typography>
-              <Box
-                sx={{ display: 'flex', gap: 0.5, mt: 0.4, flexWrap: 'wrap' }}
-              >
-                {displayRoles.map((r) => {
-                  const colorMap = {
-                    owner: theme.palette.owner.main,
-                    streamer: theme.palette.streamer.main,
-                    moderator: theme.palette.moderator.main,
-                    admin: theme.palette.admin.main,
-                  };
-
-                  return (
-                    <Chip
-                      key={r}
-                      label={r}
-                      size="small"
-                      sx={{
-                        height: 17,
-                        fontSize: 10,
-                        fontWeight: 700,
-                        bgcolor: `${colorMap[r] ?? '#555'}22`,
-                        color: colorMap[r] ?? '#aaa',
-                        border: `1px solid ${colorMap[r] ?? '#555'}55`,
-                        textTransform: 'capitalize',
-                      }}
-                    />
-                  );
-                })}
-              </Box>
-            </Box>
-          </UserCard>
-
-          <Divider
-            sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
-          />
-
-          <NavList>
-            {visibleNav.map((item) => {
-              const active = location.pathname === item.path;
-              return (
-                <Tooltip
-                  key={item.path}
-                  title={item.label}
-                  placement="right"
-                  disableHoverListener
-                >
-                  <Box
-                    onClick={() => navigate(item.path)}
-                    sx={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 1.25,
-                      px: 1.5,
-                      py: '9px',
-                      mx: 0.5,
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      fontSize: '13.5px',
-                      fontWeight: active ? 600 : 400,
-                      color: active ? '#fff' : 'rgba(255,255,255,0.5)',
-                      bgcolor: active ? 'rgba(48,154,189,0.14)' : 'transparent',
-                      borderLeft: `3px solid ${active ? '#309abd' : 'transparent'}`,
-                      transition: 'all 0.14s ease',
-                      userSelect: 'none',
-                      '&:hover': {
-                        bgcolor: active
-                          ? 'rgba(48,154,189,0.2)'
-                          : 'rgba(255,255,255,0.05)',
-                        color: '#fff',
-                      },
-                    }}
-                  >
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        color: active ? '#309abd' : 'inherit',
-                        transition: 'color 0.14s ease',
-                      }}
-                    >
-                      {item.icon}
-                    </Box>
-                    {item.label}
-                  </Box>
-                </Tooltip>
-              );
-            })}
-          </NavList>
-        </SidebarTop>
-
-        <SidebarBottom>
-          <Divider
-            sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
-          />
-          <Box
-            onClick={handleLogout}
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 1.25,
-              px: 1.5,
-              py: '9px',
-              mx: 0.5,
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontSize: '13.5px',
-              color: 'rgba(255,255,255,0.4)',
-              transition: 'all 0.14s ease',
-              userSelect: 'none',
-              '&:hover': { bgcolor: 'rgba(255,80,80,0.1)', color: '#ff6b6b' },
-            }}
-          >
-            <LogoutIcon sx={{ fontSize: 18 }} />
-            Logout
-          </Box>
-        </SidebarBottom>
+      <Sidebar className={sidebarOpen ? 'open' : ''}>
+        {sidebarContent(handleNavClick)}
       </Sidebar>
+      <SidebarBackdrop
+        className={sidebarOpen ? 'visible' : ''}
+        onClick={() => setSidebarOpen(false)}
+      />
+      <MenuToggleBtn onClick={() => setSidebarOpen((p) => !p)}>
+        {sidebarOpen ? (
+          <CloseIcon sx={{ fontSize: 20 }} />
+        ) : (
+          <MenuIcon sx={{ fontSize: 20 }} />
+        )}
+      </MenuToggleBtn>
 
       {/* ── Content ───────────────────────────────────────────── */}
       <ContentArea>
@@ -297,6 +319,20 @@ const Sidebar = styled.nav`
   justify-content: space-between;
   background: #101019;
   border-right: 1px solid rgba(255, 255, 255, 0.055);
+
+  @media (max-width: 768px) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 1200;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+
+    &.open {
+      transform: translateX(0);
+    }
+  }
 `;
 
 const SidebarTop = styled.div`
@@ -329,8 +365,58 @@ const NavList = styled.div`
   gap: 1px;
 `;
 
+const SidebarBackdrop = styled.div`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+
+    &.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+  }
+`;
+
+const MenuToggleBtn = styled.button`
+  display: none;
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: fixed;
+    top: 12px;
+    left: 12px;
+    z-index: 1300;
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #101019;
+    color: rgba(255, 255, 255, 0.75);
+    cursor: pointer;
+    transition:
+      background 0.15s ease,
+      color 0.15s ease;
+
+    &:hover {
+      background: rgba(48, 154, 189, 0.2);
+      color: #fff;
+    }
+  }
+`;
+
 const ContentArea = styled.main`
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   background: #0c0c14;
 `;

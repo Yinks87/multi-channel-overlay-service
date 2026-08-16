@@ -116,7 +116,6 @@ export async function doTokenValidationProcess({ access_token }) {
         refresh_token: newAccessToken.refresh_token,
       };
 
-
       await updateUser({
         key: 'id',
         keyValue: user.id,
@@ -209,4 +208,49 @@ export async function getAccessToken(refresh_token) {
       `Failed to refresh access token: ${error.response ? JSON.stringify(error.response.data) : error.message}`,
     );
   }
+}
+
+/**
+ *
+ * @param {string} access_token Requires an app access token or user access token.
+ * @param {string} broadcaster_id The ID of the broadcaster to send the message to.
+ * @param {string} sender_id The ID of the user sending the message.
+ * @param {string} message The message to send.
+ * @param {string|null} reply_parent_message_id Optional. The ID of the parent message to reply to.
+ * @returns {Promise<any>}
+ */
+export async function sendChatMessage({
+  access_token,
+  broadcaster_id,
+  sender_id,
+  message,
+  reply_parent_message_id = null,
+}) {
+  return validateAndProceed(access_token, async (validToken) => {
+    const body = {
+      broadcaster_id,
+      sender_id,
+      message,
+      reply_parent_message_id,
+    };
+
+    try {
+      const {
+        data: { data },
+      } = await helixAPI.post(`/chat/messages`, body, {
+        headers: {
+          'Client-ID': CLIENT_ID,
+          Authorization: `Bearer ${validToken}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      return data;
+    } catch (error) {
+      console.error('Error sending chat message:', error);
+      throw new Error(
+        `Failed to send chat message: ${error.response ? JSON.stringify(error.response.data) : error.message}`,
+      );
+    }
+  });
 }

@@ -34,7 +34,9 @@ function verifySignature(req) {
 }
 
 webhookRouter.post('/', (req, res) => {
+
   if (!verifySignature(req)) {
+    console.warn('[EventSub] Signature verification failed');
     return res.status(403).end();
   }
 
