@@ -20,7 +20,13 @@ const app = express();
 
 app.use(cors());
 // rawBody is needed for Twitch EventSub HMAC signature verification
-app.use(express.json({ verify: (_req, _res, buf) => { _req.rawBody = buf; } }));
+app.use(
+  express.json({
+    verify: (_req, _res, buf) => {
+      _req.rawBody = buf;
+    },
+  }),
+);
 
 app.use('/', baseRouter);
 
@@ -37,7 +43,7 @@ const port = config.BACKEND_PORT || 3000;
 
 async function startService() {
   try {
-    await openDb();
+    await openDb(config.MODE !== 'development' ? config.DB_PATH : undefined);
     const server = app.listen(port, () => {
       console.log(`Server is running on http://${host}:${port}`);
     });

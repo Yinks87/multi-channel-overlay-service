@@ -1,0 +1,22 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "4005:4005"
+    env_file:
+      - ./backend/.env
+    volumes:
+      - db_data:/app/data
+      - ./overlays:/app/overlays
+    restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3005:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

@@ -21,6 +21,7 @@ dotenvConfig();
  * @prop {string} JWT_SECRET - The secret key used for signing JWT tokens.
  * @prop {string} JWT_EXPIRY - The expiry time for JWT tokens (e.g., 1h, 2d, etc.).
  * @prop {string} DB_PATH - The file path for the SQLite database.
+ * @prop {string} MODE - The mode of the application (e.g., 'production' or 'development').
  */
 
 /**
