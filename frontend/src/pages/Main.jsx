@@ -1,3 +1,4 @@
+import DeleteIcon from '@mui/icons-material/Delete';
 import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
@@ -9,8 +10,16 @@ import StorageIcon from '@mui/icons-material/Storage';
 import {
   Avatar,
   Box,
+  Button,
   Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
   Divider,
+  Menu,
+  MenuItem,
   Tooltip,
   Typography,
   useTheme,
@@ -18,6 +27,7 @@ import {
 import styled from '@emotion/styled';
 import React, { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
+import api from '../api/api';
 
 const NAV_ITEMS = [
   {
@@ -109,8 +119,35 @@ const Main = () => {
 
   const initials = currentUser?.userName?.[0]?.toUpperCase() ?? '?';
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [avatarMenuAnchor, setAvatarMenuAnchor] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // close sidebar after navigation on mobile (no-op on desktop)
-  const handleNavClick = (path) => { navigate(path); setSidebarOpen(false); };
+  const handleNavClick = (path) => {
+    navigate(path);
+    setSidebarOpen(false);
+  };
+
+  const handleDeleteAccount = async () => {
+    console.log(currentUser);
+    const qs = new URLSearchParams({ userId: currentUser?.id });
+    const res = await api.delete(`/api/v1/twitch/revoke?${qs.toString()}`);
+
+    if (res.status === 200) {
+      console.log(
+        'Successfully revoked Twitch access token and deleted user account.',
+      );
+      handleLogout();
+    } else {
+      console.error(
+        'Failed to revoke Twitch access token and delete user account.',
+      );
+    }
+  };
+
+  const handleOpenDeleteAccountDialog = () => {
+    setAvatarMenuAnchor(null);
+    setDeleteDialogOpen(true);
+  };
 
   const sidebarContent = (onNavClick) => (
     <>
@@ -145,7 +182,12 @@ const Main = () => {
               fontWeight: 700,
               bgcolor: '#309abd',
               fontSize: 18,
+              cursor: 'pointer',
+              '&:hover': {
+                border: '1px solid #309abd65',
+              },
             }}
+            onClick={(e) => setAvatarMenuAnchor(e.currentTarget)}
           >
             {initials}
           </Avatar>
@@ -153,9 +195,7 @@ const Main = () => {
             <Typography variant="body2" fontWeight={600} noWrap>
               {currentUser?.userName}
             </Typography>
-            <Box
-              sx={{ display: 'flex', gap: 0.5, mt: 0.4, flexWrap: 'wrap' }}
-            >
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.4, flexWrap: 'wrap' }}>
               {displayRoles.map((r) => {
                 const colorMap = {
                   owner: theme.palette.owner.main,
@@ -185,9 +225,7 @@ const Main = () => {
           </Box>
         </UserCard>
 
-        <Divider
-          sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
-        />
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }} />
 
         <NavList>
           {visibleNav.map((item) => {
@@ -244,9 +282,7 @@ const Main = () => {
       </SidebarTop>
 
       <SidebarBottom>
-        <Divider
-          sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }}
-        />
+        <Divider sx={{ borderColor: 'rgba(255,255,255,0.07)', mx: 1, mb: 1 }} />
         <Box
           onClick={handleLogout}
           sx={{
@@ -274,6 +310,57 @@ const Main = () => {
 
   return (
     <Layout>
+      <Menu
+        anchorEl={avatarMenuAnchor}
+        open={Boolean(avatarMenuAnchor)}
+        onClose={() => setAvatarMenuAnchor(null)}
+        slotProps={{
+          paper: {
+            sx: {
+              bgcolor: '#1a1a2e',
+              border: '1px solid rgba(255,255,255,0.1)',
+            },
+          },
+        }}
+      >
+        <MenuItem
+          onClick={handleOpenDeleteAccountDialog}
+          sx={{ color: '#ff6b6b', gap: 1, fontSize: 13.5 }}
+        >
+          <DeleteIcon sx={{ fontSize: 18 }} />
+          Delete Account
+        </MenuItem>
+      </Menu>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        PaperProps={{
+          sx: { bgcolor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)' },
+        }}
+      >
+        <DialogTitle>Delete Account</DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'rgba(255,255,255,0.6)' }}>
+            This will revoke your Twitch access and permanently delete your
+            account. This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions sx={{ pb: 2, px: 3 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={async () => {
+              setDeleteDialogOpen(false);
+              await handleDeleteAccount();
+            }}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* ── Sidebar ───────────────────────────────────────────── */}
       <Sidebar className={sidebarOpen ? 'open' : ''}>
         {sidebarContent(handleNavClick)}

@@ -41,7 +41,7 @@ export const getEventTypes = ({ broadcasterId, condition = {} }) => [
     },
   },
   {
-    type: 'channel.channel_points_custom_reward_redemption.update',
+    type: 'channel.channel_points_custom_reward_redemption.add',
     version: '1',
     useUserToken: false,
     condition: {

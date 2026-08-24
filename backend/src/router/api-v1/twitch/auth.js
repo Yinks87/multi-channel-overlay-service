@@ -11,9 +11,13 @@ import {
   addRoleToUser,
   removeRoleFromUser,
   isModeratorOfAnyRegisteredStreamer,
+  getUserByTwitchId,
+  removeUser,
+  getUserById,
 } from '../../../db/services/userService.js';
 import {
   getModeratedChannels,
+  revokeTwitchAccessToken,
   userAuthorization,
 } from '../../../twitch/api.js';
 import { addStreamerEventSub } from './connect-eventsubs.js';
@@ -344,7 +348,9 @@ twitchAuthRouter.get('/auth', async (req, res) => {
     // Connect/refresh EventSub if this user is a streamer with connected = 1
     if (updatedUser.roles.includes('streamer') && updatedUser.connected !== 0) {
       addStreamerEventSub({ access_token }).catch((err) =>
-        console.error(`[EventSub] Failed to subscribe on login: ${err.message}`),
+        console.error(
+          `[EventSub] Failed to subscribe on login: ${err.message}`,
+        ),
       );
     }
 
@@ -376,5 +382,50 @@ twitchAuthRouter.get('/auth', async (req, res) => {
         error: 'Twitch authorization failed',
       }),
     );
+  }
+});
+
+twitchAuthRouter.delete('/revoke', async (req, res, next) => {
+  try {
+    const { userId } = req.query;
+    if (!userId) {
+      return res
+        .status(400)
+        .json({ error: 'Missing userId query parameter' });
+    }
+    const user = await getUserById({ userId });
+    if (!user) {
+      return res
+        .status(404)
+        .json({ error: 'User not found for the provided userId' });
+    }
+
+    const access_token = JSON.parse(user.twitch).access_token;
+    if (!access_token) {
+      return res
+        .status(400)
+        .json({ error: 'No access token found for the user' });
+    }
+
+    const revokeRes = await revokeTwitchAccessToken({ access_token });
+
+    if (revokeRes.status === 200) {
+      const remRes = await removeUser({ userId: user.id });
+      if (!remRes) {
+        console.error(
+          `Failed to remove user with ID ${user.id} after revoking Twitch access token`,
+        );
+      }
+      return res.json({
+        success: true,
+        message: 'Twitch access token revoked successfully',
+      });
+    } else {
+      return res
+        .status(revokeRes.status)
+        .json({ error: 'Failed to revoke Twitch access token' });
+    }
+  } catch (error) {
+    next(error);
   }
 });

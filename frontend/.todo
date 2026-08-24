@@ -1,0 +1,8 @@
+Frontend:
+  Disable a Streamer:
+    ☐ disable all overlays for the streamer in the database
+  Deleting a Streamer:
+    ✔ unsubscribe all subscribed Twitch eventsubs @done(26-08-24 08:08)
+    ✔ revoke the Twitch access token @done(26-08-24 08:08)
+    ☐ remove all overlays from the database
+    ☐ remove all moderators for the streamer from the database

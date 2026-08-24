@@ -254,3 +254,27 @@ export async function sendChatMessage({
     }
   });
 }
+
+/**
+ *
+ * @param {string} accountType The account type ('broadcaster' or 'bot') whose access token to revoke
+ * @returns Status 200 on success, 400 on error
+ */
+
+export async function revokeTwitchAccessToken({ access_token }) {
+  try {
+    const qs = new URLSearchParams({
+      client_id: CLIENT_ID,
+      token: access_token,
+    });
+    const data = await authAPI.post(`/revoke?${qs}`);
+    const resData = { status: data.status, message: data.statusText };
+    return resData;
+  } catch (error) {
+    const resData = {
+      status: error.response ? error.response.data.status : 400,
+      message: error.response ? error.response.data.message : error.message,
+    };
+    return resData;
+  }
+}

@@ -196,8 +196,13 @@ async function deleteStreamerSubscriptions({ broadcasterId }) {
     });
 
     const { data = [] } = response.data;
+
+    const userSubscriptions = data.filter(
+      (subs) => subs.condition.broadcaster_user_id === String(broadcasterId),
+    );
+
     await Promise.allSettled(
-      data.map((sub) =>
+      userSubscriptions.map((sub) =>
         helixAPI.delete(`/eventsub/subscriptions?id=${sub.id}`, {
           headers: {
             Authorization: `Bearer ${appToken}`,
