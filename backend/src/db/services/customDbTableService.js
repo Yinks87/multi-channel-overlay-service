@@ -10,6 +10,7 @@ export async function createCustomDbTable({ tableName, schema }) {
   return tableName;
 }
 
+//TODO This function should not push the system tables to the frontend, why it does?
 export async function getCustomDbTables() {
   const db = await getDb();
   const tables = await db.all(
