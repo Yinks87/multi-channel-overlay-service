@@ -75,6 +75,7 @@ const DatabaseManager = () => {
     setError('');
     try {
       const all = await fetchTables();
+      // TODO Add all tables if the user is the owner, otherwise filter the HIDDEN_TABLES out.
       const visible = (all ?? []).filter((t) => !HIDDEN_TABLES.includes(t));
       setTables(visible);
       setSelectedTable((prev) => {
