@@ -62,10 +62,16 @@ const StreamerCard = ({ streamer, onRemove, onToggleConnected }) => {
         </Box>
         {!streamer.twitch.hasAccessToken && (
           <Tooltip title="Streamer hasn't logged in yet — EventSub not connected">
-            <WarningAmberIcon sx={{ fontSize: 18, color: '#ff9800', flexShrink: 0 }} />
+            <WarningAmberIcon
+              sx={{ fontSize: 18, color: '#ff9800', flexShrink: 0 }}
+            />
           </Tooltip>
         )}
-        <Tooltip title={streamer.connected ? 'Disconnect EventSub' : 'Connect EventSub'}>
+        <Tooltip
+          title={
+            streamer.connected ? 'Disconnect EventSub' : 'Connect EventSub'
+          }
+        >
           <Switch
             size="small"
             checked={!!streamer.connected}
@@ -121,7 +127,6 @@ const StreamerManager = () => {
   const loadStreamers = async () => {
     setLoading(true);
     const data = await fetchRegisteredStreamers();
-    console.log('Fetched registered streamers:', data);
     setStreamers(data ?? []);
     setLoading(false);
   };
@@ -153,7 +158,9 @@ const StreamerManager = () => {
     if (!result?.success) {
       // Revert on failure
       setStreamers((prev) =>
-        prev.map((s) => (s.id === userId ? { ...s, connected: !connected } : s)),
+        prev.map((s) =>
+          s.id === userId ? { ...s, connected: !connected } : s,
+        ),
       );
     }
   };

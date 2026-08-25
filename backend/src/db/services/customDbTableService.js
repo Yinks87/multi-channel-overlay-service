@@ -10,7 +10,6 @@ export async function createCustomDbTable({ tableName, schema }) {
   return tableName;
 }
 
-//TODO This function should not push the system tables to the frontend, why it does?
 export async function getCustomDbTables() {
   const db = await getDb();
   const tables = await db.all(
@@ -20,6 +19,15 @@ export async function getCustomDbTables() {
     `,
   );
   return tables.map((table) => table.name);
+}
+
+// Get all tables — protected (dashboard use only for owner)
+export async function getAllTables() {
+  const db = await getDb();
+  const tables = await db.all(
+    `SELECT name FROM sqlite_master WHERE type='table'`,
+  );
+  return tables.map((t) => t.name);
 }
 
 export async function deleteCustomDbTable({ tableName }) {
@@ -126,7 +134,6 @@ export async function updateDataInCustomDbTable({
     ...values,
     keyValue,
   );
-
 
   await sendEventToClients({
     event: 'custom_db_table:update',

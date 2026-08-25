@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   getCustomDbTables,
+  getAllTables,
   getDataFromCustomDbTable,
   createCustomDbTable,
   deleteCustomDbTable,
@@ -27,6 +28,16 @@ customTablesRouter.get(
     }
   },
 );
+
+// Get all tables — protected (dashboard use only for owner)
+customTablesRouter.get('/all', requireRole('owner'), async (req, res, next) => {
+  try {
+    const tables = await getAllTables();
+    res.json({ data: tables });
+  } catch (err) {
+    next(err);
+  }
+});
 
 // Create table — protected
 customTablesRouter.post(

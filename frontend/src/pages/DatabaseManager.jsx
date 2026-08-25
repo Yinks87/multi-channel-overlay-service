@@ -13,7 +13,11 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import StorageIcon from '@mui/icons-material/Storage';
-import { fetchTables, deleteTable } from '../api/customTablesApi';
+import {
+  fetchTables,
+  deleteTable,
+  fetchAllTables,
+} from '../api/customTablesApi';
 import { useAlert } from '../contexts/AlertContext';
 import CreateTableDialog from '../components/dbManager/CreateTableDialog';
 import TableDataView from '../components/dbManager/TableDataView';
@@ -70,17 +74,28 @@ const DatabaseManager = () => {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem('currentUser');
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const loadTables = useCallback(async () => {
     setLoading(true);
     setError('');
     try {
-      const all = await fetchTables();
-      // TODO Add all tables if the user is the owner, otherwise filter the HIDDEN_TABLES out.
-      const visible = (all ?? []).filter((t) => !HIDDEN_TABLES.includes(t));
-      setTables(visible);
+      const all = currentUser?.roles?.includes('owner')
+        ? await fetchAllTables()
+        : await fetchTables();
+
+      // const visible = (all ?? []).filter((t) => !HIDDEN_TABLES.includes(t));
+      setTables(all ?? []);
       setSelectedTable((prev) => {
-        if (prev && visible.includes(prev)) return prev;
-        return visible[0] ?? null;
+        if (prev && all.includes(prev)) return prev;
+        return all[0] ?? null;
       });
     } catch (e) {
       setError(e.message);

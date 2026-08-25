@@ -12,6 +12,15 @@ export async function fetchTables() {
   }
 }
 
+export async function fetchAllTables() {
+  try {
+    const res = await api.get(`${BASE}/all`);
+    return res.data.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
+
 export async function createTable({ tableName, schema }) {
   try {
     const res = await api.post(`${BASE}/create`, { tableName, schema });
