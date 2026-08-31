@@ -52,9 +52,9 @@ async function startService() {
     const activeOverlays = await getActiveOverlays();
     for (const overlay of activeOverlays) {
       registerOverlay({
-        routePath: overlay.route_path,
-        folderPath: overlay.folder_path,
-        entryFile: overlay.entry_file,
+        routePath: overlay?.route_path,
+        folderPath: overlay?.folder_path,
+        entryFile: overlay?.entry_file,
       });
     }
 

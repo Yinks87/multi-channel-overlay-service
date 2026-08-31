@@ -4,7 +4,6 @@ export function handleEventSub(eventSub) {
   const e = eventSub.subscription?.type
     ? eventSub.subscription?.type
     : eventSub.session?.status;
-
   switch (e) {
     case 'channel.chat.message':
       (async () => {
@@ -68,6 +67,17 @@ export function handleEventSub(eventSub) {
       (async () => {
         await sendEventToClients({
           event: 'channel.cheer',
+          data: {
+            type: eventSub.subscription.type,
+            data: eventSub.event,
+          },
+        });
+      })();
+      break;
+    case 'channel.channel_points_custom_reward_redemption.add':
+      (async () => {
+        await sendEventToClients({
+          event: 'channel.channel_points_custom_reward_redemption.add',
           data: {
             type: eventSub.subscription.type,
             data: eventSub.event,

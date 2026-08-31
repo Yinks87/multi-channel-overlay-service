@@ -6,3 +6,8 @@ Frontend:
     ✔ revoke the Twitch access token @done(26-08-24 08:08)
     ☐ remove all overlays from the database
     ☐ remove all moderators for the streamer from the database
+  Database:
+    ☐ Add a JSON data viewer if clicking on edit data
+      - Clicking on a textfield should check if data content is JSON formatting and datatype is text, open a JSON viewer/editor
+  Overlays:
+    ☐ Add a code editor to edit overlay files (HTML, CSS, JS) with syntax highlighting and error checking

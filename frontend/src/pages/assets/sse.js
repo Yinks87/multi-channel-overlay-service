@@ -373,6 +373,65 @@ export const sseSections = [
     ],
   },
   {
+    event: 'channel.channel_points_custom_reward_redemption.add',
+    description:
+      'Fires when a viewer redeems a Channel Points custom reward.',
+    payloadSchema: `{
+  type: "channel.channel_points_custom_reward_redemption.add";
+  data: {
+    id:                     string;  // redemption ID
+    broadcaster_user_id:    string;
+    broadcaster_user_login: string;
+    broadcaster_user_name:  string;
+    user_id:                string;
+    user_login:             string;
+    user_name:              string;
+    user_input:             string;
+    status:                 "unfulfilled" | "fulfilled" | "canceled";
+    reward: {
+      id:     string;
+      title:  string;
+      cost:   number;
+      prompt: string;
+    };
+    redeemed_at: string;            // ISO 8601 timestamp
+  };
+}`,
+    payloadExample: `{
+  "type": "channel.channel_points_custom_reward_redemption.add",
+  "data": {
+    "id": "0f51d3cb-f03e-4556-a72e-35b9223aaabb",
+    "broadcaster_user_id": "1337",
+    "broadcaster_user_login": "cool_user",
+    "broadcaster_user_name": "Cool_User",
+    "user_id": "9001",
+    "user_login": "cooler_user",
+    "user_name": "Cooler_User",
+    "user_input": "",
+    "status": "unfulfilled",
+    "reward": {
+      "id": "47c6bf65-12af-4bef-aa3f-6a2bd9827afb",
+      "title": "Buy VIP",
+      "cost": 150000,
+      "prompt": "Buy VIP for 30 days"
+    },
+    "redeemed_at": "2026-08-31T16:34:51.577317101Z"
+  }
+}`,
+    listenerSnippet: `source.addEventListener(
+  'channel.channel_points_custom_reward_redemption.add',
+  (e) => {
+    const { data } = JSON.parse(e.data);
+    if (data.reward.title !== 'Buy VIP') return;
+    showAlert(data.user_login + ' redeemed ' + data.reward.title);
+  }
+);`,
+    notes: [
+      'status is "unfulfilled" on creation; use .update to track fulfillment.',
+      'user_input is empty when the reward requires no text.',
+    ],
+  },
+  {
     event: 'channel.channel_points_custom_reward_redemption.update',
     description:
       'Fires when a Channel Points custom reward redemption status changes.',

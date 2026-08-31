@@ -5,6 +5,10 @@ import path from 'path';
 const registry = new Map();
 
 export function registerOverlay({ routePath, folderPath, entryFile }) {
+  if (!routePath || !folderPath || !entryFile) {
+    throw new Error('Missing required parameters for registering overlay');
+  }
+
   if (!fs.existsSync(folderPath)) {
     throw new Error(`Overlay folder does not exist: ${folderPath}`);
   }

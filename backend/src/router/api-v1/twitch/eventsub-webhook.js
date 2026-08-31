@@ -48,6 +48,7 @@ webhookRouter.post('/', (req, res) => {
   }
 
   if (msgType === 'notification') {
+    console.log(`[EventSub] Notification received: ${body.subscription?.type}`);
     handleEventSub(body);
     return res.status(204).end();
   }

@@ -7,6 +7,11 @@ const twitchEventRouter = express.Router();
 twitchEventRouter.post('/message/send', async (req, res, next) => {
   const { message_id, broadcaster_id, message } = req.body;
 
+  // Ensure broadcaster_id is a string
+  typeof broadcaster_id === 'string'
+    ? broadcaster_id
+    : (broadcaster_id = String(broadcaster_id));
+
   const user = await getUserByTwitchId({ twitchId: broadcaster_id });
 
   if (!user) {
