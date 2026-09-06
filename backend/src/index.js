@@ -59,14 +59,17 @@ async function startService() {
         entryFile: overlay?.entry_file,
       });
     }
+  } catch (error) {
+    console.error('Failed to start service:', error);
+    process.exit(1);
+  }
 
+  // Twitch bootstrap is non-critical — a failure must not kill the server
+  try {
     const accessTokens = await getAllStreamersAccessTokens();
 
-    // Fetch a fresh app access token and persist it to app_settings
     await initAppToken();
 
-    // Starts/ensures one EventSub websocket loop per streamer token.
-    // connectToTwitchEventSubs returns after loops are scheduled in background.
     if (accessTokens.length > 0) {
       await connectToTwitchEventSubs({ access_tokens: accessTokens });
     } else {
@@ -75,17 +78,11 @@ async function startService() {
       );
     }
 
-    // Validate all user access tokens now and every 60 minutes
     startUserTokenValidationSchedule();
-
-    // Schedule fetching global emotes every 7 days
     scheduleGlobalEmotes();
-    
-    // Schedule fetching user emotes every 24 hours
     scheduleUserEmotes();
   } catch (error) {
-    console.error('Failed to start service:', error);
-    process.exit(1);
+    console.error('Twitch bootstrap failed — server keeps running:', error);
   }
 }
 
