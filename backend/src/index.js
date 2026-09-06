@@ -79,8 +79,8 @@ async function startService() {
     }
 
     startUserTokenValidationSchedule();
-    scheduleGlobalEmotes();
-    scheduleUserEmotes();
+    // scheduleGlobalEmotes();
+    // scheduleUserEmotes();
   } catch (error) {
     console.error('Twitch bootstrap failed — server keeps running:', error);
   }
