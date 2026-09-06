@@ -94,8 +94,9 @@ const DatabaseManager = () => {
       // const visible = (all ?? []).filter((t) => !HIDDEN_TABLES.includes(t));
       setTables(all ?? []);
       setSelectedTable((prev) => {
-        if (prev && all.includes(prev)) return prev;
-        return all[0] ?? null;
+        const safe = all ?? [];
+        if (prev && safe.includes(prev)) return prev;
+        return safe[0] ?? null;
       });
     } catch (e) {
       setError(e.message);
