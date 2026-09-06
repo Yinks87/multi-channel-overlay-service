@@ -905,6 +905,15 @@ const OverlayFormDialog = ({
           multiple
           options={streamers.filter((s) => !form.streamerIds.includes(s.id))}
           getOptionLabel={(o) => o.twitch?.display_name ?? o.userName}
+          renderOption={(props, option) => (
+            <li {...props} key={option.id}>
+              <Avatar
+                src={option.twitch?.profile_image_url}
+                sx={{ width: 24, height: 24, mr: 1 }}
+              />
+              {option.twitch?.display_name ?? option.userName}
+            </li>
+          )}
           isOptionEqualToValue={(o, v) => o.id === v.id}
           value={streamers.filter((s) => form.streamerIds.includes(s.id))}
           onChange={(_, selected) =>

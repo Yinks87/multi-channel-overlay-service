@@ -48,6 +48,31 @@ const migrations = [
       `);
     },
   },
+  {
+    version: 2,
+    name: 'add_emotes_tables',
+    up: async (db) => {
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS user_emotes (
+          id TEXT PRIMARY KEY,
+          last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          twitch TEXT DEFAULT '{}',
+          bttv TEXT DEFAULT '{}',
+          ffz TEXT DEFAULT '{}',
+          '7tv' TEXT DEFAULT '{}'
+        );
+      `);
+
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS global_emotes (
+          last_updated TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          bttv TEXT DEFAULT '{}',
+          ffz TEXT DEFAULT '{}',
+          '7tv' TEXT DEFAULT '{}'
+        );
+      `);
+    },
+  },
 
   // Example of a future migration:
   // {

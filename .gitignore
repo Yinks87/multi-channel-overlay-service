@@ -4,5 +4,6 @@
 .env.production
 data/
 test-overlays/
+overlays/
 cspell.json
 .vscode/

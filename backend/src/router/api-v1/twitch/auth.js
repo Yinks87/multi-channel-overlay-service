@@ -21,6 +21,7 @@ import {
   userAuthorization,
 } from '../../../twitch/api.js';
 import { addStreamerEventSub } from './connect-eventsubs.js';
+import { fetchUserEmotes } from '../../../twitch/twitch-emotes/fetch-user-emotes.js';
 
 const TWITCH_CLIENT_ID = config.TWITCH_CLIENT_ID;
 const TWITCH_CLIENT_SECRET = config.TWITCH_CLIENT_SECRET;
@@ -263,6 +264,7 @@ twitchAuthRouter.get('/auth', async (req, res) => {
 
     if (!userExists) {
       const initialRoles = isOwner ? ['owner'] : [];
+
       await createUser({
         user: {
           userName: user.display_name,
@@ -272,6 +274,9 @@ twitchAuthRouter.get('/auth', async (req, res) => {
           moderatedChannels: JSON.stringify(moderators || []),
         },
       });
+
+      // fetch user emotes for the newly created user
+      await fetchUserEmotes({ twitchId: twitchData.id });
     } else {
       const updateData = {
         twitch: JSON.stringify(twitchData),
@@ -286,6 +291,8 @@ twitchAuthRouter.get('/auth', async (req, res) => {
         keyValue: userExists.id,
         updateData,
       });
+
+      await fetchUserEmotes({ twitchId: twitchData.id });
     }
 
     // Fetch the final, up-to-date user record to build the JWT
@@ -389,9 +396,7 @@ twitchAuthRouter.delete('/revoke', async (req, res, next) => {
   try {
     const { userId } = req.query;
     if (!userId) {
-      return res
-        .status(400)
-        .json({ error: 'Missing userId query parameter' });
+      return res.status(400).json({ error: 'Missing userId query parameter' });
     }
     const user = await getUserById({ userId });
     if (!user) {

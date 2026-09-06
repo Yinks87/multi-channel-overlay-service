@@ -15,6 +15,8 @@ import {
 } from './router/api-v1/twitch/connect-eventsubs.js';
 import { getAllStreamersAccessTokens } from './db/services/userService.js';
 import { startUserTokenValidationSchedule } from './twitch/tokenValidator.js';
+import { scheduleGlobalEmotes } from './twitch/twitch-emotes/fetch-global-emotes.js';
+import { scheduleUserEmotes } from './twitch/twitch-emotes/fetch-user-emotes.js';
 
 const app = express();
 
@@ -75,6 +77,12 @@ async function startService() {
 
     // Validate all user access tokens now and every 60 minutes
     startUserTokenValidationSchedule();
+
+    // Schedule fetching global emotes every 7 days
+    scheduleGlobalEmotes();
+    
+    // Schedule fetching user emotes every 24 hours
+    scheduleUserEmotes();
   } catch (error) {
     console.error('Failed to start service:', error);
     process.exit(1);

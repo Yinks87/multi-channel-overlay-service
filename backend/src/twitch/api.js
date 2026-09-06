@@ -278,3 +278,33 @@ export async function revokeTwitchAccessToken({ access_token }) {
     return resData;
   }
 }
+
+/**
+ *
+ * @param {string} broadcaster_id - the broadcaster id where the emotes are being fetched
+ * @param {string} access_token - access token from the user who is fetching the emotes
+ * @returns
+ */
+
+export async function getChannelEmotes({ broadcaster_id, access_token }) {
+  const qs = new URLSearchParams({
+    broadcaster_id,
+  });
+  return await validateAndProceed(access_token, async (validToken) => {
+    try {
+      const {
+        data: { data },
+      } = await helixAPI.get(`/chat/emotes?${qs}`, {
+        headers: {
+          'Client-Id': CLIENT_ID,
+          Authorization: `Bearer ${validToken}`,
+        },
+      });
+
+      return { success: true, data: data };
+    } catch (error) {
+      console.error('Error getting channel emotes:', error);
+      return { success: false, error: error.message };
+    }
+  });
+}

@@ -11,7 +11,12 @@ import {
 } from '../../../db/services/userService.js';
 import { requireRole } from '../../../middleware/auth.js';
 import { getUsers } from '../../../twitch/api.js';
-import { addStreamerEventSub, removeStreamerEventSub } from '../twitch/connect-eventsubs.js';
+import {
+  addStreamerEventSub,
+  removeStreamerEventSub,
+} from '../twitch/connect-eventsubs.js';
+import { fetchUserEmotes } from '../../../twitch/twitch-emotes/fetch-user-emotes.js';
+import { deleteUserEmotes } from '../../../db/services/emoteService.js';
 
 const registeredStreamersRouter = express.Router();
 
@@ -69,6 +74,7 @@ registeredStreamersRouter.post(
       let user = await getUserByNormalizedUserName({ normalizedUserName });
 
       if (!user) {
+        // use app access_token instead of user access_token
         const requesterUser = await getUserById({ userId: requesterId });
         const { access_token } = JSON.parse(requesterUser?.twitch);
 
@@ -101,12 +107,17 @@ registeredStreamersRouter.post(
       await addRoleToUser({ userId: user.id, role: 'streamer' });
       await addRoleToUser({ userId: user.id, role: 'overlay:read' });
 
-      // Connect EventSub immediately if the user already has a stored token
-      const token = JSON.parse(user.twitch || '{}').access_token;
+      // Connect EventSub and fetch emotes immediately if the user already has a stored token
+      const twitchData = JSON.parse(user.twitch || '{}');
+      const token = twitchData.access_token;
       if (token) {
         addStreamerEventSub({ access_token: token }).catch((err) =>
-          console.error(`[EventSub] Failed to subscribe on streamer add: ${err.message}`),
+          console.error(
+            `[EventSub] Failed to subscribe on streamer add: ${err.message}`,
+          ),
         );
+        console.log(`[EventSub] Subscribing for streamer with token: ${token}`);
+        await fetchUserEmotes({ twitchId: twitchData.id });
       }
 
       res.json({ success: true, data: { userId: user.id } });
@@ -131,12 +142,14 @@ registeredStreamersRouter.delete(
       }
 
       await removeRoleFromUser({ userId: id, role: 'streamer' });
-
+      await deleteUserEmotes({ id: JSON.parse(user.twitch || '{}').id });
       // Unsubscribe EventSub if the streamer had a connected token
       const token = JSON.parse(user.twitch || '{}').access_token;
       if (token) {
         removeStreamerEventSub({ access_token: token }).catch((err) =>
-          console.error(`[EventSub] Failed to unsubscribe on streamer remove: ${err.message}`),
+          console.error(
+            `[EventSub] Failed to unsubscribe on streamer remove: ${err.message}`,
+          ),
         );
       }
 
@@ -169,25 +182,37 @@ registeredStreamersRouter.patch(
       const { connected } = req.body;
 
       if (typeof connected !== 'boolean') {
-        return res.status(400).json({ success: false, error: 'connected must be a boolean' });
+        return res
+          .status(400)
+          .json({ success: false, error: 'connected must be a boolean' });
       }
 
       const user = await getUserById({ userId: id });
       if (!user) {
-        return res.status(404).json({ success: false, error: 'User not found' });
+        return res
+          .status(404)
+          .json({ success: false, error: 'User not found' });
       }
 
-      await updateUser({ key: 'id', keyValue: id, updateData: { connected: connected ? 1 : 0 } });
+      await updateUser({
+        key: 'id',
+        keyValue: id,
+        updateData: { connected: connected ? 1 : 0 },
+      });
 
       const token = JSON.parse(user.twitch || '{}').access_token;
       if (token) {
         if (connected) {
           addStreamerEventSub({ access_token: token }).catch((err) =>
-            console.error(`[EventSub] Failed to subscribe on connect: ${err.message}`),
+            console.error(
+              `[EventSub] Failed to subscribe on connect: ${err.message}`,
+            ),
           );
         } else {
           removeStreamerEventSub({ access_token: token }).catch((err) =>
-            console.error(`[EventSub] Failed to unsubscribe on disconnect: ${err.message}`),
+            console.error(
+              `[EventSub] Failed to unsubscribe on disconnect: ${err.message}`,
+            ),
           );
         }
       }
