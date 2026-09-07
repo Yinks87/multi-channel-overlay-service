@@ -676,8 +676,7 @@ const Docs = () => {
 }`}</CodeBlock>
               <Stack
                 direction="row"
-                justifyContent="flex-end"
-                sx={{ mt: 1.25 }}
+                sx={{ mt: 1.25, justifyContent: 'flex-end' }}
               >
                 <CopyButton
                   value={`{
@@ -768,8 +767,7 @@ const Docs = () => {
               </CodeBlock>
               <Stack
                 direction="row"
-                justifyContent="flex-end"
-                sx={{ mt: 1.25 }}
+                sx={{ mt: 1.25, justifyContent: 'flex-end' }}
               >
                 <CopyButton
                   value={sseConnectionSnippet}

@@ -13,7 +13,7 @@ const userRouter = express.Router();
 userRouter.get('/', requireRole('owner', 'admin'), async (req, res, next) => {
   try {
     const userId = req.query.id;
-    const userName = req.query.userName.toLocaleLowerCase();
+    const userName = req.query?.userName?.toLowerCase();
 
     if (!userId && !userName) {
       return res

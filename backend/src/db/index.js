@@ -23,6 +23,7 @@ export async function openDb(dbPath = path.join(path.resolve(), 'db.sqlite')) {
   // WAL mode for better performance and concurrency
   await db.exec('PRAGMA journal_mode = WAL;');
   await db.run(`PRAGMA foreign_keys = ON;`);
+  await db.run('PRAGMA busy_timeout = 5000;');
 
   await runMigrations(db);
 

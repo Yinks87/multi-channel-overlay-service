@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import styled from '@emotion/styled';
-import process from 'process';
 import {
   Alert,
   Autocomplete,

@@ -64,7 +64,7 @@ overlayRouter.get('/', requireRole(), async (req, res) => {
     return res.status(404).json({ success: false, error: 'No overlays found' });
   }
 
-  res.json({ success: true, data: overlays });
+  res.json({ success: true, data: overlays ?? [] });
 });
 
 overlayRouter.post(
