@@ -46,12 +46,7 @@ const migrations = [
           created_at TEXT NOT NULL
         );
       `);
-    },
-  },
-  {
-    version: 2,
-    name: 'add_emotes_tables',
-    up: async (db) => {
+
       await db.exec(`
         CREATE TABLE IF NOT EXISTS user_emotes (
           id TEXT PRIMARY KEY,
