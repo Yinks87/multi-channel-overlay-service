@@ -9,9 +9,11 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  FormControlLabel,
   IconButton,
   Paper,
   Stack,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -47,7 +49,7 @@ function getRowKey(row, schema) {
 
 const BADGE_COLORS = {
   PK: 'warning',
-  NN: 'error',
+  REQ: 'error',
   UNI: 'info',
   DEF: 'default',
 };
@@ -55,7 +57,7 @@ const BADGE_COLORS = {
 function SchemaBadges({ col }) {
   const badges = [];
   if (col.primaryKey) badges.push('PK');
-  if (col.notNull && !col.primaryKey) badges.push('NN');
+  if (col.required && !col.primaryKey) badges.push('REQ');
   if (col.unique && !col.primaryKey) badges.push('UNI');
   if (col.defaultValue !== null) badges.push('DEF');
   if (!badges.length) return null;
@@ -74,8 +76,134 @@ function SchemaBadges({ col }) {
   );
 }
 
-// ── Insert / Edit Row Dialog ──────────────────────────────────────────────────
+// ── Type helpers ─────────────────────────────────────────────────────────────
 
+function getInitialValue(col, initialValues) {
+  const existing = initialValues?.[col.name];
+  if (col.type === 'BOOLEAN') {
+    if (existing !== undefined) return Boolean(existing);
+    if (col.defaultValue === 'true') return true;
+    if (col.defaultValue === 'false') return false;
+    return false;
+  }
+  if (col.type === 'STRING[]')
+    return Array.isArray(existing) ? existing.join('\n') : '';
+  if (col.type === 'OBJECT[]' || col.type === 'OBJECT')
+    return existing != null
+      ? JSON.stringify(existing, null, 2)
+      : col.type === 'OBJECT'
+        ? '{}'
+        : '[]';
+  return existing ?? '';
+}
+
+function renderFieldInput(col, value, onChange, disabled) {
+  if (col.type === 'BOOLEAN') {
+    return (
+      <FormControlLabel
+        key={col.name}
+        label={<Typography variant="body2">{col.name}</Typography>}
+        control={
+          <Switch
+            checked={Boolean(value)}
+            disabled={disabled}
+            onChange={(e) => onChange(e.target.checked)}
+          />
+        }
+        sx={{ ml: 0 }}
+      />
+    );
+  }
+  if (col.type === 'STRING[]') {
+    return (
+      <TextField
+        key={col.name}
+        label={`${col.name} — one item per line`}
+        size="small"
+        multiline
+        minRows={2}
+        value={typeof value === 'string' ? value : ''}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+    return (
+      <TextField
+        key={col.name}
+        label={`${col.name} (JSON)`}
+        size="small"
+        multiline
+        minRows={3}
+        value={typeof value === 'string' ? value : ''}
+        disabled={disabled}
+        inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.8rem' } }}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  if (col.type === 'DECIMAL') {
+    return (
+      <TextField
+        key={col.name}
+        label={`${col.name} (${col.type})${col.primaryKey ? ' · PK' : ''}`}
+        size="small"
+        type="number"
+        value={value ?? ''}
+        disabled={disabled}
+        inputProps={{ step: 'any' }}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  return (
+    <TextField
+      key={col.name}
+      label={`${col.name} (${col.type})${col.primaryKey ? ' · PK' : ''}`}
+      size="small"
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
+}
+
+function renderCellValue(col, value) {
+  if (value === null || value === undefined) {
+    return (
+      <Typography variant="caption" color="text.disabled">
+        NULL
+      </Typography>
+    );
+  }
+  if (col.type === 'BOOLEAN') {
+    return (
+      <Chip
+        label={value ? 'true' : 'false'}
+        size="small"
+        color={value ? 'success' : 'default'}
+        sx={{ height: 18, fontSize: '0.65rem' }}
+      />
+    );
+  }
+  if (col.type === 'STRING[]' && Array.isArray(value)) {
+    if (!value.length) return '[]';
+    const preview = value.slice(0, 3).join(', ');
+    return value.length > 3 ? `${preview} +${value.length - 3}` : preview;
+  }
+  if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+    const s = JSON.stringify(value);
+    return (
+      <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
+        {s.length > 50 ? `${s.slice(0, 50)}…` : s}
+      </Typography>
+    );
+  }
+  return String(value);
+}
+
+// ── Insert / Edit Row Dialog ──────────────────────────────────────────────────
 const RowFormDialog = ({
   open,
   onClose,
@@ -96,7 +224,7 @@ const RowFormDialog = ({
     if (open) {
       setValues(
         Object.fromEntries(
-          visibleCols.map((c) => [c.name, initialValues?.[c.name] ?? '']),
+          visibleCols.map((c) => [c.name, getInitialValue(c, initialValues)]),
         ),
       );
       setError('');
@@ -104,9 +232,34 @@ const RowFormDialog = ({
   }, [open]);
 
   const handleSubmit = async () => {
-    const payload = Object.fromEntries(
-      Object.entries(values).filter(([, v]) => v !== ''),
-    );
+    const payload = {};
+    for (const col of visibleCols) {
+      const val = values[col.name];
+      if (col.type === 'BOOLEAN') {
+        payload[col.name] = Boolean(val);
+      } else if (col.type === 'STRING[]') {
+        const items = String(val)
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean);
+        if (items.length) payload[col.name] = items;
+      } else if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+        const str = String(val).trim();
+        if (str && str !== '[]' && str !== '{}') {
+          try {
+            payload[col.name] = JSON.parse(str);
+          } catch {
+            setError(`Invalid JSON for field "${col.name}"`);
+            return;
+          }
+        }
+      } else if (col.type === 'DECIMAL') {
+        const num = parseFloat(val);
+        if (val !== '' && !isNaN(num)) payload[col.name] = num;
+      } else if (val !== '') {
+        payload[col.name] = val;
+      }
+    }
     setLoading(true);
     setError('');
     try {
@@ -159,18 +312,14 @@ const RowFormDialog = ({
         onSubmit={handleSubmit}
       >
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
-          {visibleCols.map((col) => (
-            <TextField
-              key={col.name}
-              label={`${col.name} (${col.type})${col.primaryKey ? ' · PK' : ''}`}
-              size="small"
-              value={values[col.name] ?? ''}
-              disabled={mode === 'edit' && col.primaryKey}
-              onChange={(e) =>
-                setValues((prev) => ({ ...prev, [col.name]: e.target.value }))
-              }
-            />
-          ))}
+          {visibleCols.map((col) =>
+            renderFieldInput(
+              col,
+              values[col.name],
+              (v) => setValues((prev) => ({ ...prev, [col.name]: v })),
+              mode === 'edit' && col.primaryKey,
+            ),
+          )}
           {error && <Alert severity="error">{error}</Alert>}
         </Box>
       </FormDialog>
@@ -409,13 +558,7 @@ const TableDataView = ({ tableName }) => {
                   </TableCell>
                   {visibleCols.map((col) => (
                     <TableCell key={col.name}>
-                      {row[col.name] === null || row[col.name] === undefined ? (
-                        <Typography variant="caption" color="text.disabled">
-                          NULL
-                        </Typography>
-                      ) : (
-                        String(row[col.name])
-                      )}
+                      {renderCellValue(col, row[col.name])}
                     </TableCell>
                   ))}
                 </TableRow>

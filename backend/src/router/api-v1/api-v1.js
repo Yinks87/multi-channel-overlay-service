@@ -1,10 +1,4 @@
 import express from 'express';
-import { randomUUID } from 'node:crypto';
-import {
-  createUser,
-  getUserById,
-  getUserByNormalizedUserName,
-} from '../../db/services/userService.js';
 import userRouter from './user/v1.js';
 import overlayRouter from './overlay/v1.js';
 import customTablesRouter from './custom-tables/v1.js';

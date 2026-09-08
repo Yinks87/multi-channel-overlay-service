@@ -31,7 +31,6 @@ import LayersIcon from '@mui/icons-material/Layers';
 import FolderIcon from '@mui/icons-material/Folder';
 import RouteIcon from '@mui/icons-material/AltRoute';
 import ArticleIcon from '@mui/icons-material/Article';
-import PeopleIcon from '@mui/icons-material/People';
 import CopyAllIcon from '@mui/icons-material/CopyAll';
 import {
   fetchOverlays,
@@ -1111,13 +1110,22 @@ const OverlayManager = () => {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    let active = true;
+    setLoading(true);
+    setError('');
+    fetchOverlays()
+      .then((data) => { if (active) setOverlays(data ?? []); })
+      .catch((e) => { if (active) setError(e.message); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
+    let active = true;
     fetchRegisteredStreamers()
-      .then((data) => setStreamers(data ?? []))
+      .then((data) => { if (active) setStreamers(data ?? []); })
       .catch(() => {});
+    return () => { active = false; };
   }, []);
 
   const handleEdit = (overlay) => {

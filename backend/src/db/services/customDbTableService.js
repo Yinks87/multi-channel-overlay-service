@@ -1,148 +1,105 @@
-import { randomUUID } from 'crypto';
-import { getDb } from '../index.js';
+import mongoose from 'mongoose';
+import CustomTableSchemaModel from '../schemas/custom-table-schemas.js';
 import { sendEventToClients } from '../../router/api-v1/overlay/client-v1.js';
 
-export async function createCustomDbTable({ tableName, schema }) {
-  const db = await getDb();
+// _schemas is never shown in the tables list
+const HIDDEN_COLLECTIONS = new Set(['_schemas']);
 
-  await db.run(`CREATE TABLE IF NOT EXISTS ${tableName} (${schema})`);
+// System collections that cannot be dropped via the custom-tables API
+const PROTECTED_COLLECTIONS = new Set([
+  'overlays', 'users', 'app_settings', 'user_emotes',
+  'global_emotes', 'registered_streamers',
+]);
 
+function getCollection(tableName) {
+  return mongoose.connection.collection(tableName);
+}
+
+function docToRow(doc) {
+  if (!doc) return null;
+  const { _id, ...rest } = doc;
+  return { __rowid__: _id.toString(), ...rest };
+}
+
+function buildQuery(key, keyValue) {
+  if (key === '__rowid__') {
+    return { _id: new mongoose.Types.ObjectId(keyValue) };
+  }
+  return { [key]: keyValue };
+}
+
+export async function createCustomDbTable({ tableName, columns }) {
+  await mongoose.connection.createCollection(tableName);
+  await CustomTableSchemaModel.create({ name: tableName, columns });
   return tableName;
 }
 
 export async function getCustomDbTables() {
-  const db = await getDb();
-  const tables = await db.all(
-    `SELECT name FROM sqlite_master 
-      WHERE type='table' 
-      AND name NOT IN ('overlays', 'users', 'sqlite_sequence')
-    `,
-  );
-  return tables.map((table) => table.name);
+  const cols = await mongoose.connection.db.listCollections().toArray();
+  return cols.map((c) => c.name).filter((n) => !HIDDEN_COLLECTIONS.has(n));
 }
 
-// Get all tables — protected (dashboard use only for owner)
+// Get all collections — protected (dashboard use only for owner)
 export async function getAllTables() {
-  const db = await getDb();
-  const tables = await db.all(
-    `SELECT name FROM sqlite_master WHERE type='table'`,
-  );
-  return tables.map((t) => t.name);
+  const cols = await mongoose.connection.db.listCollections().toArray();
+  return cols.map((c) => c.name);
 }
 
 export async function deleteCustomDbTable({ tableName }) {
-  const db = await getDb();
-  await db.run(`DROP TABLE IF EXISTS ${tableName}`);
+  if (PROTECTED_COLLECTIONS.has(tableName)) {
+    throw Object.assign(
+      new Error(`Cannot delete system collection: ${tableName}`),
+      { status: 403 },
+    );
+  }
+  await mongoose.connection.dropCollection(tableName);
+  await CustomTableSchemaModel.deleteOne({ name: tableName });
   return { success: true, message: `Table ${tableName} deleted successfully` };
 }
 
 export async function getDataFromCustomDbTable({ tableName }) {
-  const db = await getDb();
-  // __rowid__ is used as a reliable fallback key when no PK is defined
-  const data = await db.all(`SELECT rowid AS __rowid__, * FROM ${tableName}`);
-  return data;
+  const docs = await getCollection(tableName).find({}).toArray();
+  return docs.map(docToRow);
 }
 
 export async function getRowFromCustomDbTable({ tableName, key, keyValue }) {
-  const db = await getDb();
-  const row = await db.get(
-    `SELECT rowid AS __rowid__, * FROM ${tableName} WHERE ${key} = ?`,
-    keyValue,
-  );
-  return row;
+  const doc = await getCollection(tableName).findOne(buildQuery(key, keyValue));
+  return docToRow(doc);
 }
 
 export async function getTableSchema(tableName) {
-  const db = await getDb();
-  const columns = await db.all(`PRAGMA table_info(${tableName})`);
-
-  // Collect unique column names from unique indexes
-  const indexList = await db.all(`PRAGMA index_list(${tableName})`);
-  const uniqueColumns = new Set();
-  for (const idx of indexList) {
-    if (idx.unique) {
-      const indexInfo = await db.all(`PRAGMA index_info(${idx.name})`);
-      indexInfo.forEach((c) => uniqueColumns.add(c.name));
-    }
-  }
-
-  return columns.map((col) => ({
-    name: col.name,
-    type: col.type,
-    notNull: col.notnull === 1,
-    defaultValue: col.dflt_value,
-    primaryKey: col.pk > 0,
-    unique: uniqueColumns.has(col.name),
-  }));
+  const schema = await CustomTableSchemaModel.findOne({ name: tableName });
+  return schema?.columns ?? [];
 }
 
 export async function deleteRowFromCustomDbTable({ tableName, key, keyValue }) {
-  const db = await getDb();
-  await db.run(`DELETE FROM ${tableName} WHERE ${key} = ?`, keyValue);
+  await getCollection(tableName).deleteOne(buildQuery(key, keyValue));
 
   await sendEventToClients({
     event: 'custom_db_table:delete',
-    data: {
-      tableName,
-      key,
-      keyValue,
-    },
+    data: { tableName, key, keyValue },
   });
 
   return { success: true, message: `Row deleted from ${tableName}` };
 }
 
 export async function insertDataIntoCustomDbTable({ tableName, data }) {
-  const db = await getDb();
-  const columns = Object.keys(data).join(', ');
-  const placeholders = Object.keys(data)
-    .map(() => '?')
-    .join(', ');
-  const values = Object.values(data);
-
-  const result = await db.run(
-    `INSERT INTO ${tableName} (${columns}) VALUES (${placeholders})`,
-    ...values,
-  );
+  const result = await getCollection(tableName).insertOne(data);
 
   await sendEventToClients({
     event: 'custom_db_table:insert',
-    data: {
-      tableName,
-      rowId: result.lastID,
-      data,
-    },
+    data: { tableName, rowId: result.insertedId.toString(), data },
   });
 
   return { success: true, message: `Data inserted into table ${tableName}` };
 }
 
-export async function updateDataInCustomDbTable({
-  tableName,
-  key,
-  keyValue,
-  data,
-}) {
-  const db = await getDb();
-  const columns = Object.keys(data)
-    .map((column) => `${column} = ?`)
-    .join(', ');
-  const values = Object.values(data);
-
-  await db.run(
-    `UPDATE ${tableName} SET ${columns} WHERE ${key} = ?`,
-    ...values,
-    keyValue,
-  );
+export async function updateDataInCustomDbTable({ tableName, key, keyValue, data }) {
+  await getCollection(tableName).updateOne(buildQuery(key, keyValue), { $set: data });
 
   await sendEventToClients({
     event: 'custom_db_table:update',
-    data: {
-      tableName,
-      key,
-      keyValue,
-      updatedData: data,
-    },
+    data: { tableName, key, keyValue, updatedData: data },
   });
 
   return { success: true, message: `Data updated in table ${tableName}` };

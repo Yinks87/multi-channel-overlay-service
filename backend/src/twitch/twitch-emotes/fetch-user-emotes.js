@@ -2,13 +2,8 @@ import axios from 'axios';
 
 import {
   getAllUsersWithTwitchTokens,
-  getUserByTwitchAccessToken,
-  getUserByTwitchId,
 } from '../../db/services/userService.js';
-import {
-  deleteUserEmotes,
-  insertUserEmotes,
-} from '../../db/services/emoteService.js';
+
 import { getChannelEmotes } from '../api.js';
 import {
   process7TVEmotes,
@@ -16,11 +11,13 @@ import {
   processFFZEmotes,
   processTwitchEmotes,
 } from './utils.js';
+import UserEmotesModel from '../../db/schemas/user-emotes.js';
+import UsersModel from '../../db/schemas/users.js';
 
 export const fetchUserEmotes = async ({ twitchId }) => {
   try {
-    const user = await getUserByTwitchId({ twitchId });
-    const twitchData = JSON.parse(user?.twitch);
+    const user = await UsersModel.findOne({ 'twitch.id': twitchId });
+    const twitchData = user?.twitch;
 
     if (!user.roles.includes('streamer')) {
       return {
@@ -49,15 +46,17 @@ export const fetchUserEmotes = async ({ twitchId }) => {
       getUserTwitchEmotes(id, access_token),
     ]);
 
-    await deleteUserEmotes({ id });
-
-    await insertUserEmotes({
-      id,
-      twitch: twitchEmotes,
-      bttv: bttvEmotes,
-      ffz: ffzEmotes,
-      sevenTv: sevenTvEmotes,
-    });
+    await UserEmotesModel.findOneAndUpdate(
+      { id },
+      {
+        id,
+        twitch: twitchEmotes,
+        bttv: bttvEmotes,
+        ffz: ffzEmotes,
+        '7tv': sevenTvEmotes,
+      },
+      { upsert: true },
+    );
 
     return {
       success: true,
@@ -159,16 +158,22 @@ export async function getUserTwitchEmotes(broadcaster_id, access_token) {
 // --- Scheduling (user emotes every 24h) ---
 let _userInterval = null;
 const DAY_MS = 24 * 60 * 60 * 1000;
+// const DAY_MS = 60 * 1000;
 
 export async function scheduleUserEmotes(intervalMs = DAY_MS) {
   if (_userInterval) return;
 
   _userInterval = setInterval(async () => {
-    const tokens = await getAllUsersWithTwitchTokens();
+    try {
+      const tokens = await getAllUsersWithTwitchTokens();
 
-    for (const token of tokens) {
-      const user = await getUserByTwitchAccessToken({ access_token: token });
-      fetchUserEmotes({ twitchId: JSON.parse(user.twitch).id });
+      for (const token of tokens) {
+        const user = await UsersModel.findOne({ 'twitch.access_token': token });
+        if (!user?.twitch) continue;
+        await fetchUserEmotes({ twitchId: user.twitch.id });
+      }
+    } catch (err) {
+      console.error('[emotes] User emote scheduler error:', err);
     }
   }, intervalMs);
   _userInterval.unref?.();

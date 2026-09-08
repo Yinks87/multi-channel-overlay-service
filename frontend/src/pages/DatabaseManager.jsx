@@ -23,7 +23,6 @@ import CreateTableDialog from '../components/dbManager/CreateTableDialog';
 import TableDataView from '../components/dbManager/TableDataView';
 import FormDialog from '../components/FormDialog';
 
-const HIDDEN_TABLES = ['users', 'overlays', 'app_settings'];
 
 /* ── Delete Confirm Dialog ────────────────────────────────────────────────── */
 

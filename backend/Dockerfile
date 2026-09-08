@@ -8,7 +8,7 @@ RUN npm install --omit=dev
 COPY src ./src
 # COPY assets ./assets
 
-RUN mkdir -p /app/data /app/overlays
+RUN mkdir -p /app/overlays
 
 EXPOSE 4005
 

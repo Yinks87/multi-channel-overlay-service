@@ -11,39 +11,35 @@ import {
 } from '@mui/material';
 
 import DeleteIcon from '@mui/icons-material/Delete';
-import React from 'react';
 
-const TYPES = ['TEXT', 'INTEGER', 'REAL', 'BLOB'];
+const TYPES = ['TEXT', 'NUMBER', 'DECIMAL', 'BOOLEAN', 'STRING[]', 'OBJECT[]', 'OBJECT'];
+const COMPLEX_TYPES = new Set(['BOOLEAN', 'STRING[]', 'OBJECT[]', 'OBJECT']);
 
 const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
-  const {
-    id,
-    name,
-    type,
-    notNull,
-    unique,
-    primaryKey,
-    autoIncrement,
-    defaultValue,
-  } = column;
+  const { id, name, type, required, unique, primaryKey, defaultValue } = column;
 
   const set = (field, value) => onChange(id, field, value);
 
+  const isComplex = COMPLEX_TYPES.has(type);
+
   const handlePrimaryKey = (checked) => {
     set('primaryKey', checked);
-    if (!checked) set('autoIncrement', false);
   };
 
   const handleType = (value) => {
     set('type', value);
-    if (value !== 'INTEGER') set('autoIncrement', false);
+    if (COMPLEX_TYPES.has(value)) {
+      set('primaryKey', false);
+      set('unique', false);
+    }
+    if (value === 'BOOLEAN') set('required', false);
   };
 
   return (
     <Box
       sx={{
         display: 'grid',
-        gridTemplateColumns: '1fr 120px auto auto auto auto 120px 40px',
+        gridTemplateColumns: '240px 160px auto auto auto 1fr 40px',
         alignItems: 'center',
         gap: 1,
         p: 1,
@@ -75,18 +71,18 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
         ))}
       </Select>
 
-      {/* NOT NULL */}
-      <Tooltip title="NOT NULL">
+      {/* Required */}
+      <Tooltip title="Required">
         <FormControlLabel
           control={
             <Checkbox
               size="small"
-              checked={notNull}
-              disabled={primaryKey}
-              onChange={(e) => set('notNull', e.target.checked)}
+              checked={required}
+              disabled={primaryKey || type === 'BOOLEAN'}
+              onChange={(e) => set('required', e.target.checked)}
             />
           }
-          label={<Typography variant="caption">NN</Typography>}
+          label={<Typography variant="caption">REQ</Typography>}
           sx={{ m: 0 }}
         />
       </Tooltip>
@@ -98,7 +94,7 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
             <Checkbox
               size="small"
               checked={unique}
-              disabled={primaryKey}
+              disabled={primaryKey || isComplex}
               onChange={(e) => set('unique', e.target.checked)}
             />
           }
@@ -108,13 +104,14 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
       </Tooltip>
 
       {/* PRIMARY KEY */}
-      <Tooltip title="PRIMARY KEY">
+      {/* flags a field as the UI row identifier — not a MongoDB constraint */}
+      <Tooltip title="Row identifier used for updates / deletes">
         <FormControlLabel
           control={
             <Checkbox
               size="small"
               checked={primaryKey}
-              disabled={hasPrimaryKey && !primaryKey}
+              disabled={(hasPrimaryKey && !primaryKey) || isComplex}
               onChange={(e) => handlePrimaryKey(e.target.checked)}
             />
           }
@@ -123,29 +120,26 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
         />
       </Tooltip>
 
-      {/* AUTOINCREMENT */}
-      <Tooltip title="AUTOINCREMENT (INTEGER PRIMARY KEY only)">
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={autoIncrement}
-              disabled={!(type === 'INTEGER' && primaryKey)}
-              onChange={(e) => set('autoIncrement', e.target.checked)}
-            />
-          }
-          label={<Typography variant="caption">AI</Typography>}
-          sx={{ m: 0 }}
-        />
-      </Tooltip>
-
       {/* Default Value */}
-      <TextField
-        size="small"
-        placeholder="Default"
-        value={defaultValue}
-        onChange={(e) => set('defaultValue', e.target.value)}
-      />
+      {type === 'BOOLEAN' ? (
+        <Select
+          size="small"
+          value={defaultValue}
+          onChange={(e) => set('defaultValue', e.target.value)}
+          displayEmpty
+        >
+          <MenuItem value="true">true</MenuItem>
+          <MenuItem value="false">false</MenuItem>
+        </Select>
+      ) : (
+        <TextField
+          size="small"
+          placeholder="Default"
+          value={defaultValue}
+          disabled={isComplex}
+          onChange={(e) => set('defaultValue', e.target.value)}
+        />
+      )}
 
       {/* Delete */}
       <IconButton

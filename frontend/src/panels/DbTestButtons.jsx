@@ -88,11 +88,11 @@ const DbTestButtons = () => {
   const handleCreateCustomTable = async () => {
     const newTable = {
       tableName: 'new_table',
-      schema: {
-        id: 'TEXT PRIMARY KEY',
-        name: 'TEXT NOT NULL',
-        created_at: 'TEXT NOT NULL',
-      },
+      columns: [
+        { name: 'id', type: 'TEXT', required: true, unique: true, primaryKey: true, defaultValue: null },
+        { name: 'name', type: 'TEXT', required: true, unique: false, primaryKey: false, defaultValue: null },
+        { name: 'created_at', type: 'TEXT', required: true, unique: false, primaryKey: false, defaultValue: null },
+      ],
     };
     try {
       const response = await api.post('api/v1/custom-tables/create', newTable);

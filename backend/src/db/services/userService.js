@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
 import { getDb } from '../index.js';
+import UsersModel from '../schemas/users.js';
 
 function parseUser(user) {
   if (!user) return null;
@@ -8,41 +8,6 @@ function parseUser(user) {
     roles: JSON.parse(user.roles || '[]'),
     moderatedChannels: user.moderatedChannels,
   };
-}
-
-export async function createUser({ user }) {
-  const db = await getDb();
-
-  const setters = Object.keys(user).join(', ');
-  const placeholders = Object.keys(user)
-    .map(() => '?')
-    .join(', ');
-  const values = Object.values(user);
-  const id = randomUUID();
-  const now = new Date().toISOString();
-  await db.run(
-    `INSERT INTO users (id, ${setters}, created_at) VALUES (?, ${placeholders}, ?)`,
-    id,
-    ...values,
-    now,
-  );
-  return id;
-}
-
-export async function updateUser({ key, keyValue, updateData }) {
-  const db = await getDb();
-
-  const setter = Object.keys(updateData)
-    .map((k) => `${k} = ?`)
-    .join(', ');
-  const values = Object.values(updateData);
-
-  const result = await db.run(
-    `UPDATE users SET ${setter} WHERE ${key} = ?`,
-    ...values,
-    keyValue,
-  );
-  return result.changes > 0;
 }
 
 export async function getUserByNormalizedUserName({ normalizedUserName }) {
@@ -71,25 +36,29 @@ export async function getUserByTwitchAccessToken({ access_token }) {
 }
 
 export async function getAllStreamersAccessTokens() {
-  const db = await getDb();
-  const streamers = await db.all(
-    `SELECT json_extract(twitch, '$.access_token') AS access_token
-     FROM users, json_each(users.roles) j
-     WHERE j.value = 'streamer'
-       AND users.connected = 1
-       AND json_extract(users.twitch, '$.access_token') IS NOT NULL`,
-  );
-  return streamers.map((s) => s.access_token);
+  const usersWithTokens = await UsersModel.find({
+    'twitch.access_token': { $exists: true },
+    roles: { $in: ['streamer'] },
+  });
+
+  // const db = await getDb();
+  // const streamers = await db.all(
+  //   `SELECT json_extract(twitch, '$.access_token') AS access_token
+  //    FROM users, json_each(users.roles) j
+  //    WHERE j.value = 'streamer'
+  //      AND users.connected = 1
+  //      AND json_extract(users.twitch, '$.access_token') IS NOT NULL`,
+  // );
+
+  return usersWithTokens.map((s) => s.twitch.access_token);
 }
 
 export async function getAllUsersWithTwitchTokens() {
-  const db = await getDb();
-  const rows = await db.all(
-    `SELECT json_extract(twitch, '$.access_token') AS access_token
-     FROM users
-     WHERE json_extract(twitch, '$.access_token') IS NOT NULL`,
-  );
-  return rows.map((r) => r.access_token);
+  const rows = await UsersModel.find({
+    'twitch.access_token': { $exists: true },
+  });
+
+  return rows.map((r) => r.twitch.access_token);
 }
 
 export async function getAllUsers() {
@@ -123,31 +92,32 @@ export async function getUserByToken({ token }) {
 }
 
 export async function addRoleToUser({ userId, role }) {
-  const user = await getUserById({ userId });
+  if (!userId) throw new Error('Missing userId');
+  const user = await UsersModel.findOne({ id: userId });
   if (!user) throw new Error(`User with ID ${userId} not found`);
   const roles = user.roles;
   if (roles.includes(role)) return true;
   roles.push(role);
-  const db = await getDb();
-  const result = await db.run(
-    'UPDATE users SET roles = ? WHERE id = ?',
-    JSON.stringify(roles),
-    userId,
+
+  await UsersModel.findOneAndUpdate(
+    { id: userId },
+    { roles: roles },
+    { upsert: true },
   );
-  return result.changes > 0;
+  return true;
 }
 
 export async function removeRoleFromUser({ userId, role }) {
-  const user = await getUserById({ userId });
+  if (!userId) throw new Error('Missing userId');
+  const user = await UsersModel.findOne({ id: userId });
   if (!user) throw new Error(`User with ID ${userId} not found`);
   const roles = user.roles.filter((r) => r !== role);
-  const db = await getDb();
-  const result = await db.run(
-    'UPDATE users SET roles = ? WHERE id = ?',
-    JSON.stringify(roles),
-    userId,
+  await UsersModel.findOneAndUpdate(
+    { id: userId },
+    { roles: roles },
+    { upsert: true },
   );
-  return result.changes > 0;
+  return true;
 }
 
 export async function getModeratedChannelsForUser({ userId }) {
@@ -179,9 +149,10 @@ export async function updateModeratedChannelsForUser({
 }
 
 export async function removeUser({ userId }) {
-  const db = await getDb();
-  const result = await db.run('DELETE FROM users WHERE id = ?', userId);
-  return result.changes > 0;
+  if (!userId) throw new Error('Missing userId');
+  await UsersModel.deleteOne({ id: userId });
+
+  return true;
 }
 
 /**
@@ -196,14 +167,14 @@ export async function isModeratorOfAnyRegisteredStreamer({
   if (!Array.isArray(moderatedChannels) || moderatedChannels.length === 0) {
     return false;
   }
-  const db = await getDb();
-  const rows = await db.all(
-    `SELECT DISTINCT json_extract(users.twitch, '$.id') AS twitch_id
-     FROM users, json_each(users.roles) j
-     WHERE j.value = 'streamer'
-       AND json_extract(users.twitch, '$.id') IS NOT NULL`,
-  );
-  const streamerTwitchIds = new Set(rows.map((r) => r.twitch_id));
+
+  const rows = await UsersModel.find({
+    roles: {
+      $in: ['streamer'],
+    },
+  });
+
+  const streamerTwitchIds = new Set(rows.map((r) => r.twitch.id));
   return moderatedChannels.some((ch) =>
     streamerTwitchIds.has(String(ch.broadcaster_id)),
   );

@@ -6,7 +6,6 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - db_data:/app/data
       - ./overlays:/app/overlays
     restart: unless-stopped
 
@@ -17,6 +16,3 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-
-volumes:
-  db_data:

@@ -1,11 +1,9 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import {
-  Alert,
   Box,
   Button,
   Divider,
   TextField,
-  Typography,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import { v4 as uuidv4 } from 'uuid';
@@ -18,23 +16,11 @@ const makeColumn = () => ({
   id: uuidv4(),
   name: '',
   type: 'TEXT',
-  notNull: false,
+  required: false,
   unique: false,
   primaryKey: false,
-  autoIncrement: false,
   defaultValue: '',
 });
-
-function buildColumnDef(col) {
-  const parts = [col.type];
-  if (col.primaryKey) parts.push('PRIMARY KEY');
-  if (col.autoIncrement && col.type === 'INTEGER' && col.primaryKey)
-    parts.push('AUTOINCREMENT');
-  if (col.notNull && !col.primaryKey) parts.push('NOT NULL');
-  if (col.unique && !col.primaryKey) parts.push('UNIQUE');
-  if (col.defaultValue.trim()) parts.push(`DEFAULT ${col.defaultValue.trim()}`);
-  return parts.join(' ');
-}
 
 const CreateTableDialog = ({ open, onClose, onCreated }) => {
   const { showAlert } = useAlert();
@@ -78,14 +64,19 @@ const CreateTableDialog = ({ open, onClose, onCreated }) => {
       return;
     }
 
-    const schema = Object.fromEntries(
-      columns.map((col) => [col.name.trim(), buildColumnDef(col)]),
-    );
+    const cols = columns.map(({ name, type, required, unique, primaryKey, defaultValue }) => ({
+      name: name.trim(),
+      type,
+      required,
+      unique,
+      primaryKey,
+      defaultValue: defaultValue.trim() || null,
+    }));
 
     setLoading(true);
     setError('');
     try {
-      await createTable({ tableName: tableName.trim(), schema });
+      await createTable({ tableName: tableName.trim(), columns: cols });
       showAlert({
         message: `Table "${tableName}" created successfully`,
         severity: 'success',
@@ -142,29 +133,6 @@ const CreateTableDialog = ({ open, onClose, onCreated }) => {
           />
 
           <Divider />
-
-          {/* Column header labels */}
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: '1fr 120px auto auto auto auto 120px 40px',
-              gap: 1,
-              px: 1,
-            }}
-          >
-            {['Name', 'Type', 'NN', 'UNI', 'PK', 'AI', 'Default', ''].map(
-              (label) => (
-                <Typography
-                  key={label}
-                  variant="caption"
-                  color="text.secondary"
-                  fontWeight={600}
-                >
-                  {label}
-                </Typography>
-              ),
-            )}
-          </Box>
 
           {/* Column rows */}
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>

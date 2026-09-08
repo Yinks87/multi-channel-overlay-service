@@ -21,9 +21,9 @@ export async function fetchAllTables() {
   }
 }
 
-export async function createTable({ tableName, schema }) {
+export async function createTable({ tableName, columns }) {
   try {
-    const res = await api.post(`${BASE}/create`, { tableName, schema });
+    const res = await api.post(`${BASE}/create`, { tableName, columns });
     return res.data;
   } catch (e) {
     handleApiError(e);

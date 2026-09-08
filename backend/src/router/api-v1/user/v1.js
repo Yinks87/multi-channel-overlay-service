@@ -1,12 +1,8 @@
 import express from 'express';
-import { randomUUID } from 'node:crypto';
-import {
-  createUser,
-  getAllUsers,
-  getUserById,
-  getUserByNormalizedUserName,
-} from '../../../db/services/userService.js';
 import { requireRole } from '../../../middleware/auth.js';
+import UsersModel from '../../../db/schemas/users.js';
+import AppSettingsModel from '../../../db/schemas/app-settings.js';
+import { getUsers } from '../../../twitch/api.js';
 
 const userRouter = express.Router();
 
@@ -23,11 +19,9 @@ userRouter.get('/', requireRole('owner', 'admin'), async (req, res, next) => {
 
     let user;
     if (userId) {
-      user = await getUserById({ userId });
+      user = await UsersModel.findOne({ id: userId });
     } else if (userName) {
-      user = await getUserByNormalizedUserName({
-        normalizedUserName: userName,
-      });
+      user = await UsersModel.findOne({ normalizedUserName: userName });
     }
 
     if (!user) {
@@ -43,11 +37,11 @@ userRouter.get('/', requireRole('owner', 'admin'), async (req, res, next) => {
 // GET /api/v1/user/all — list all safely parsed users (owner or admin)
 userRouter.get('/all', async (req, res, next) => {
   try {
-    const users = await getAllUsers();
+    const users = await UsersModel.find();
 
     const safeUsers = users.map((user) => {
       // Parse the twitch JSON data and only include safe fields
-      const twitchData = JSON.parse(user.twitch || '{}');
+      const twitchData = user.twitch;
       return {
         ...user,
         twitch: {
@@ -65,7 +59,7 @@ userRouter.get('/all', async (req, res, next) => {
   }
 });
 
-userRouter.post('/', requireRole('owner', 'admin'), async (req, res) => {
+userRouter.post('/', requireRole('owner', 'admin'), async (req, res, next) => {
   try {
     const { userName, normalizedUserName, roles } = req.body;
     if (!userName || !normalizedUserName) {
@@ -75,13 +69,20 @@ userRouter.post('/', requireRole('owner', 'admin'), async (req, res) => {
       });
     }
 
-    const newUser = {
+    const appCredentials = await AppSettingsModel.find();
+    const userData = await getUsers({
+      access_token: appCredentials[0].access_token,
+      login: normalizedUserName,
+    });
+
+    await UsersModel.create({
+      id: userData.id || null,
       userName,
       normalizedUserName,
-      roles: JSON.stringify(Array.isArray(roles) ? roles : ['user']),
-    };
-    const newUserId = await createUser({ user: newUser });
-    res.status(201).json({ success: true, data: newUserId });
+      roles: Array.isArray(roles) ? roles : ['user'],
+    });
+
+    res.status(201).json({ success: true, data: userData.id });
   } catch (err) {
     next(err);
   }

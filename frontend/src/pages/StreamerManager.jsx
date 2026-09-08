@@ -23,6 +23,7 @@ import {
 import styled from '@emotion/styled';
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAlert } from '../contexts/AlertContext';
 
 /* ── StreamerCard ────────────────────────────────────────────────────────── */
 
@@ -101,6 +102,7 @@ const StreamerCard = ({ streamer, onRemove, onToggleConnected }) => {
 
 const StreamerManager = () => {
   const navigate = useNavigate();
+  const { showAlert } = useAlert();
   const [streamers, setStreamers] = useState([]);
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
@@ -134,15 +136,20 @@ const StreamerManager = () => {
   const handleAdd = async () => {
     if (!userName.trim()) return;
     setAdding(true);
-    const result = await addRegisteredStreamer({
-      userName: userName.trim(),
-      requesterId: JSON.parse(localStorage.getItem('currentUser'))?.id,
-    });
-    setUserName('');
-    if (result?.success) {
-      await loadStreamers();
+    try {
+      const result = await addRegisteredStreamer({
+        userName: userName.trim(),
+        requesterId: JSON.parse(localStorage.getItem('currentUser'))?.id,
+      });
+      setUserName('');
+      if (result?.success) {
+        await loadStreamers();
+      }
+    } catch (e) {
+      showAlert({ message: e.message, severity: 'error' });
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   };
 
   const handleRemove = async (userId) => {

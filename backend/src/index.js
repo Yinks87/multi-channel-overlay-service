@@ -18,6 +18,9 @@ import { startUserTokenValidationSchedule } from './twitch/tokenValidator.js';
 import { scheduleGlobalEmotes } from './twitch/twitch-emotes/fetch-global-emotes.js';
 import { scheduleUserEmotes } from './twitch/twitch-emotes/fetch-user-emotes.js';
 
+import { seedSystemSchemas } from './db/seeds/system-schemas.js';
+import './db/db-init.js';
+
 const app = express();
 
 app.use(cors());
@@ -45,10 +48,13 @@ const port = config.BACKEND_PORT || 3000;
 
 async function startService() {
   try {
-    await openDb(config.MODE !== 'development' ? config.DB_PATH : undefined);
+    // await openDb(config.MODE !== 'development' ? config.DB_PATH : undefined);
+
     const server = app.listen(port, () => {
       console.log(`Server is running on http://${host}:${port}`);
     });
+
+    await seedSystemSchemas();
 
     // Load and register active overlays from the database
     const activeOverlays = await getActiveOverlays();

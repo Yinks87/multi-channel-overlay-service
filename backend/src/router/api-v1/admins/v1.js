@@ -1,16 +1,12 @@
 import express from 'express';
 import {
   getUsersByRole,
-  getUserById,
   addRoleToUser,
-  removeRoleFromUser,
-  getUserByNormalizedUserName,
-  createUser,
-  updateUser,
   isModeratorOfAnyRegisteredStreamer,
 } from '../../../db/services/userService.js';
 import { requireRole } from '../../../middleware/auth.js';
 import { getUsers } from '../../../twitch/api.js';
+import UsersModel from '../../../db/schemas/users.js';
 
 const adminsRouter = express.Router();
 
@@ -19,9 +15,9 @@ adminsRouter.get(
   requireRole('owner', 'admin:manage'),
   async (req, res, next) => {
     try {
-      const admins = await getUsersByRole({ role: 'admin' });
+      const admins = await UsersModel.find({ roles: { $in: ['admin'] } });
       const safeTwitchData = admins.map((admin) => {
-        const twitchData = JSON.parse(admin.twitch || '{}');
+        const twitchData = admin.twitch;
         return {
           ...admin,
           twitch: {
@@ -66,11 +62,11 @@ adminsRouter.post(
       }
 
       const normalizedUserName = userName.trim().toLowerCase();
-      let user = await getUserByNormalizedUserName({ normalizedUserName });
+      let user = await UsersModel.findOne({ normalizedUserName });
 
       if (!user) {
-        const requesterUser = await getUserById({ userId: requesterId });
-        const { access_token } = JSON.parse(requesterUser?.twitch);
+        const requesterUser = await UsersModel.findOne({ id: requesterId });
+        const { access_token } = requesterUser?.twitch;
 
         const twitchData = await getUsers({
           access_token,
@@ -85,17 +81,18 @@ adminsRouter.post(
           });
         }
 
-        const userId = await createUser({
-          user: {
-            userName: userName.trim(),
-            normalizedUserName,
-            twitch: JSON.stringify(twitchData),
-            roles: JSON.stringify(['admin']),
-          },
+        await UsersModel.create({
+          id: twitchData.id,
+          userName: userName.trim(),
+          normalizedUserName,
+          twitch: twitchData,
+          roles: ['admin'],
         });
-        return res
-          .status(201)
-          .json({ success: true, data: { userId, twitch: twitchData } });
+
+        return res.status(201).json({
+          success: true,
+          data: { userId: twitchData.id, twitch: twitchData },
+        });
       }
 
       // admin:manage cannot promote the owner
@@ -124,7 +121,7 @@ adminsRouter.delete(
       const { id } = req.params;
 
       // admin:manage cannot demote the owner
-      const target = await getUserById({ userId: id });
+      const target = await UsersModel.findOne({ id });
       if (
         target?.roles.includes('owner') &&
         !req.currentUser.roles.includes('owner')
@@ -134,7 +131,12 @@ adminsRouter.delete(
           .json({ success: false, error: 'Cannot modify the owner account' });
       }
 
-      const adminRoles = ['admin', 'overlay:manage', 'db:manage', 'admin:manage'];
+      const adminRoles = [
+        'admin',
+        'overlay:manage',
+        'db:manage',
+        'admin:manage',
+      ];
       let newRoles = target.roles.filter((r) => !adminRoles.includes(r));
 
       if (target.roles.includes('streamer')) {
@@ -157,11 +159,12 @@ adminsRouter.delete(
         }
       }
 
-      await updateUser({
-        key: 'id',
-        keyValue: id,
-        updateData: { roles: JSON.stringify(newRoles) },
-      });
+      await UsersModel.findOneAndUpdate(
+        { id },
+        { roles: newRoles },
+        { upsert: true },
+      );
+
       res.json({ success: true });
     } catch (error) {
       next(error);
@@ -179,7 +182,7 @@ adminsRouter.patch(
       const { id } = req.params;
       const { permissions } = req.body;
 
-      const user = await getUserById({ userId: id });
+      const user = await UsersModel.findOne({ id });
       if (!user) {
         return res
           .status(404)
@@ -203,11 +206,12 @@ adminsRouter.patch(
         : [];
       const newRoles = [...baseRoles, ...safePermissions];
 
-      await updateUser({
-        key: 'id',
-        keyValue: id,
-        updateData: { roles: JSON.stringify(newRoles) },
-      });
+      await UsersModel.findOneAndUpdate(
+        { id },
+        { roles: newRoles },
+        { upsert: true },
+      );
+
       res.json({ success: true });
     } catch (error) {
       next(error);

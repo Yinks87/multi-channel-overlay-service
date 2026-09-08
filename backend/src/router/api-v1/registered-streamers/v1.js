@@ -1,12 +1,7 @@
 import express from 'express';
 import {
-  getUsersByRole,
-  getUserById,
   addRoleToUser,
   removeRoleFromUser,
-  getUserByNormalizedUserName,
-  createUser,
-  updateUser,
   isModeratorOfAnyRegisteredStreamer,
 } from '../../../db/services/userService.js';
 import { requireRole } from '../../../middleware/auth.js';
@@ -17,14 +12,15 @@ import {
 } from '../twitch/connect-eventsubs.js';
 import { fetchUserEmotes } from '../../../twitch/twitch-emotes/fetch-user-emotes.js';
 import { deleteUserEmotes } from '../../../db/services/emoteService.js';
+import UsersModel from '../../../db/schemas/users.js';
 
 const registeredStreamersRouter = express.Router();
 
 registeredStreamersRouter.get('/', async (req, res, next) => {
   try {
-    const streamers = await getUsersByRole({ role: 'streamer' });
+    const streamers = await UsersModel.find({ roles: { $in: ['streamer'] } });
     const safeTwitchData = streamers.map((streamer) => {
-      const twitchData = JSON.parse(streamer.twitch || '{}');
+      const twitchData = streamer.twitch || {};
       return {
         ...streamer,
         twitch: {
@@ -71,12 +67,13 @@ registeredStreamersRouter.post(
       }
 
       const normalizedUserName = userName.trim().toLowerCase();
-      let user = await getUserByNormalizedUserName({ normalizedUserName });
+      let user = await UsersModel.findOne({ normalizedUserName });
 
       if (!user) {
         // use app access_token instead of user access_token
-        const requesterUser = await getUserById({ userId: requesterId });
-        const { access_token } = JSON.parse(requesterUser?.twitch);
+        let requesterUser = await UsersModel.findOne({ id: requesterId });
+
+        const { access_token } = requesterUser?.twitch || {};
 
         const twitchData = await getUsers({
           access_token,
@@ -91,24 +88,25 @@ registeredStreamersRouter.post(
           });
         }
 
-        const userId = await createUser({
-          user: {
-            userName: userName.trim(),
-            normalizedUserName,
-            twitch: JSON.stringify(twitchData),
-            roles: JSON.stringify(['streamer', 'overlay:read']),
-          },
+        await UsersModel.create({
+          id: twitchData.id,
+          userName: userName.trim(),
+          normalizedUserName,
+          twitch: twitchData,
+          roles: ['streamer', 'overlay:read'],
         });
-        return res
-          .status(201)
-          .json({ success: true, data: { userId, twitch: twitchData } });
+
+        return res.status(201).json({
+          success: true,
+          data: { userId: twitchData.id, twitch: twitchData },
+        });
       }
 
       await addRoleToUser({ userId: user.id, role: 'streamer' });
       await addRoleToUser({ userId: user.id, role: 'overlay:read' });
 
       // Connect EventSub and fetch emotes immediately if the user already has a stored token
-      const twitchData = JSON.parse(user.twitch || '{}');
+      const twitchData = user.twitch || {};
       const token = twitchData.access_token;
       if (token) {
         addStreamerEventSub({ access_token: token }).catch((err) =>
@@ -133,7 +131,7 @@ registeredStreamersRouter.delete(
   async (req, res, next) => {
     try {
       const { id } = req.params;
-      const user = await getUserById({ userId: id });
+      const user = await UsersModel.findOne({ id });
 
       if (!user) {
         return res
@@ -142,9 +140,9 @@ registeredStreamersRouter.delete(
       }
 
       await removeRoleFromUser({ userId: id, role: 'streamer' });
-      await deleteUserEmotes({ id: JSON.parse(user.twitch || '{}').id });
+      await deleteUserEmotes({ id: user.twitch.id });
       // Unsubscribe EventSub if the streamer had a connected token
-      const token = JSON.parse(user.twitch || '{}').access_token;
+      const token = user.twitch.access_token;
       if (token) {
         removeStreamerEventSub({ access_token: token }).catch((err) =>
           console.error(
@@ -187,20 +185,19 @@ registeredStreamersRouter.patch(
           .json({ success: false, error: 'connected must be a boolean' });
       }
 
-      const user = await getUserById({ userId: id });
+      const user = await UsersModel.findOne({ id });
       if (!user) {
         return res
           .status(404)
           .json({ success: false, error: 'User not found' });
       }
 
-      await updateUser({
-        key: 'id',
-        keyValue: id,
-        updateData: { connected: connected ? 1 : 0 },
-      });
+      await UsersModel.findOneAndUpdate(
+        { id },
+        { $set: { connected: connected ? true : false } },
+      );
 
-      const token = JSON.parse(user.twitch || '{}').access_token;
+      const token = user.twitch.access_token;
       if (token) {
         if (connected) {
           addStreamerEventSub({ access_token: token }).catch((err) =>
@@ -232,7 +229,7 @@ registeredStreamersRouter.patch(
       const { id } = req.params;
       const { permissions } = req.body;
 
-      const user = await getUserById({ userId: id });
+      const user = await UsersModel.findOne({ id });
       if (!user) {
         return res
           .status(404)
@@ -246,11 +243,8 @@ registeredStreamersRouter.patch(
         : [];
       const newRoles = [...baseRoles, ...safePermissions];
 
-      await updateUser({
-        key: 'id',
-        keyValue: id,
-        updateData: { roles: JSON.stringify(newRoles) },
-      });
+      await UsersModel.findOneAndUpdate({ id }, { $set: { roles: newRoles } });
+
       res.json({ success: true });
     } catch (error) {
       next(error);

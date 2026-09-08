@@ -1,12 +1,10 @@
 import config from '../../../config.js';
-import {
-  getUserByTwitchAccessToken,
-  getUserByTwitchId,
-} from '../../../db/services/userService.js';
+
 import { saveAppAccessToken } from '../../../db/services/appSettingsService.js';
 import { getUsers } from '../../../twitch/api.js';
 import { getEventTypes } from './event-types.js';
 import { authAPI, helixAPI } from './auth.js';
+import UsersModel from '../../../db/schemas/users.js';
 
 const CLIENT_ID = config.TWITCH_CLIENT_ID;
 const CLIENT_SECRET = config.TWITCH_CLIENT_SECRET;
@@ -96,8 +94,11 @@ export async function addStreamerEventSub({ access_token }) {
 export async function removeStreamerEventSub({ access_token }) {
   if (!streamerTokens.has(access_token)) return;
 
-  const user = await getUserByTwitchAccessToken({ access_token });
-  const channelName = JSON.parse(user?.twitch || '{}').login;
+  const user = await UsersModel.findOne({
+    'twitch.access_token': access_token,
+  });
+
+  const channelName = user?.twitch.login;
 
   if (channelName) {
     const broadcaster = await getUsers({
@@ -121,8 +122,10 @@ export async function disconnectTwitchEventSubs() {
 }
 
 export async function subscribeToChannelEvents({ access_token }) {
-  const user = await getUserByTwitchAccessToken({ access_token });
-  const channelName = JSON.parse(user?.twitch || '{}').login;
+  const user = await UsersModel.findOne({
+    'twitch.access_token': access_token,
+  });
+  const channelName = user?.twitch.login;
 
   if (!channelName) {
     console.error('[EventSub] No channel login found for subscription.');
@@ -138,9 +141,9 @@ export async function subscribeToChannelEvents({ access_token }) {
       return { success: false };
     }
 
-    const newBcData = await getUserByTwitchId({ twitchId: broadcaster.id });
+    const newBcData = await UsersModel.findOne({ 'twitch.id': broadcaster.id });
     const userToken = newBcData?.twitch
-      ? JSON.parse(newBcData.twitch).access_token
+      ? newBcData.twitch.access_token
       : access_token;
 
     const appToken = await getAppAccessToken();

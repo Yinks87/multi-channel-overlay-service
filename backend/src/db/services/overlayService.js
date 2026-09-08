@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
-import { getDb } from '../index.js';
+import OverlaysModel from '../schemas/overlays.js';
+import UsersModel from '../schemas/users.js';
 
 function normalizeParams(params) {
   if (!params || typeof params !== 'object' || Array.isArray(params)) {
@@ -7,7 +8,9 @@ function normalizeParams(params) {
   }
 
   return Object.fromEntries(
-    Object.entries(params).filter(([key]) => typeof key === 'string' && key.trim()),
+    Object.entries(params).filter(
+      ([key]) => typeof key === 'string' && key.trim(),
+    ),
   );
 }
 
@@ -26,35 +29,13 @@ function normalizeOverlayType(types) {
 
 function mapOverlayRow(row) {
   if (!row) return row;
-
-  let parsedParams = {};
-  try {
-    parsedParams = normalizeParams(JSON.parse(row.params ?? '{}'));
-  } catch {
-    parsedParams = {};
-  }
-
-  let parsedStreamerIds = [];
-  try {
-    const raw = JSON.parse(row.streamer_ids ?? '[]');
-    parsedStreamerIds = normalizeStreamerIds(Array.isArray(raw) ? raw : []);
-  } catch {
-    parsedStreamerIds = [];
-  }
-
-  let parsedOverlayType = ['streamer'];
-  try {
-    const raw = JSON.parse(row.overlay_type ?? '["streamer"]');
-    parsedOverlayType = normalizeOverlayType(Array.isArray(raw) ? raw : []);
-  } catch {
-    parsedOverlayType = ['streamer'];
-  }
-
+  // toObject strips Mongoose internals (_id, __v) when coming from a model instance
+  const doc = row.toObject ? row.toObject() : { ...row };
   return {
-    ...row,
-    params: parsedParams,
-    streamer_ids: parsedStreamerIds,
-    overlay_type: parsedOverlayType,
+    ...doc,
+    params: normalizeParams(doc.params ?? {}),
+    streamer_ids: normalizeStreamerIds(doc.streamer_ids ?? []),
+    overlay_type: normalizeOverlayType(doc.overlay_type ?? []),
   };
 }
 
@@ -70,31 +51,30 @@ export async function createOverlay({
   width = 800,
   height = 600,
 }) {
-  const db = await getDb();
   const id = randomUUID();
   const now = new Date().toISOString();
-  await db.run(
-    'INSERT INTO overlays (id, name, route_path, folder_path, entry_file, notes, params, streamer_ids, overlay_type, width, height, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+
+  await OverlaysModel.create({
     id,
     name,
-    routePath,
-    folderPath,
-    entryFile,
+    route_path: routePath,
+    folder_path: folderPath,
+    entry_file: entryFile,
     notes,
-    JSON.stringify(normalizeParams(params)),
-    JSON.stringify(normalizeStreamerIds(streamerIds)),
-    JSON.stringify(normalizeOverlayType(overlayType)),
+    params: normalizeParams(params),
+    streamer_ids: normalizeStreamerIds(streamerIds),
+    overlay_type: normalizeOverlayType(overlayType),
     width,
     height,
-    1,
-    now,
-  );
+    active: true,
+    created_at: now,
+  });
+
   return id;
 }
 
 export async function getOverlaysForStreamer({ userId, roles = [] }) {
-  const db = await getDb();
-  const overlays = await db.all('SELECT * FROM overlays WHERE active = 1');
+  const overlays = await OverlaysModel.find({ active: true });
   const mapped = overlays.map(mapOverlayRow);
 
   const isStreamer = roles.includes('streamer');
@@ -114,27 +94,26 @@ export async function getOverlaysForStreamer({ userId, roles = [] }) {
 
   if (isModerator) {
     // Resolve which registered streamer DB IDs this user moderates
-    const userRow = await db.get(
-      'SELECT moderatedChannels FROM users WHERE id = ?',
-      userId,
-    );
+    const userRow = await UsersModel.findOne({ id: userId });
+
     let moderatedChannels = [];
     try {
-      moderatedChannels = JSON.parse(userRow?.moderatedChannels || '[]');
-    } catch { /* ignore */ }
+      moderatedChannels = userRow?.moderatedChannels || [];
+    } catch {
+      /* ignore */
+    }
 
     const moderatedTwitchIds = new Set(
       moderatedChannels.map((ch) => String(ch.broadcaster_id)),
     );
 
-    const streamerRows = await db.all(
-      `SELECT users.id, json_extract(twitch, '$.id') AS twitch_id
-       FROM users, json_each(users.roles) j
-       WHERE j.value = 'streamer' AND twitch_id IS NOT NULL`,
-    );
+    const streamerRows = await UsersModel.find({
+      roles: { $in: ['streamer'] },
+    });
+
     const moderatedStreamerDbIds = new Set(
       streamerRows
-        .filter((s) => moderatedTwitchIds.has(String(s.twitch_id)))
+        .filter((s) => moderatedTwitchIds.has(String(s.twitch?.id)))
         .map((s) => s.id),
     );
 
@@ -153,23 +132,18 @@ export async function getOverlaysForStreamer({ userId, roles = [] }) {
 }
 
 export async function getActiveOverlays() {
-  const db = await getDb();
-  const overlays = await db.all('SELECT * FROM overlays WHERE active = 1');
+  const overlays = await OverlaysModel.find({ active: true });
   return overlays.map(mapOverlayRow);
 }
 
 export async function getAllOverlays() {
-  const db = await getDb();
-  const overlays = await db.all('SELECT * FROM overlays');
+  const overlays = await OverlaysModel.find({});
   return overlays.map(mapOverlayRow);
 }
 
 export async function deleteOverlay(id) {
-  const db = await getDb();
-  const overlay = await db.get('SELECT * FROM overlays WHERE id = ?', id);
-  if (!overlay) return null;
-  await db.run('DELETE FROM overlays WHERE id = ?', id);
-  return mapOverlayRow(overlay);
+  const overlay = await OverlaysModel.findOneAndDelete({ id });
+  return overlay ? mapOverlayRow(overlay) : null;
 }
 
 export async function updateOverlay({
@@ -186,46 +160,24 @@ export async function updateOverlay({
   height,
   active,
 }) {
-  const db = await getDb();
-  const overlay = await db.get('SELECT * FROM overlays WHERE id = ?', id);
+  const overlay = await OverlaysModel.findOne({ id });
   if (!overlay) return null;
 
-  const updatedOverlay = {
-    ...overlay,
+  const updates = {
     route_path: routePath ?? overlay.route_path,
     name: name ?? overlay.name,
     folder_path: folderPath ?? overlay.folder_path,
     entry_file: entryFile ?? overlay.entry_file,
     notes: notes !== undefined ? notes : overlay.notes,
-    params: params !== undefined ? JSON.stringify(normalizeParams(params)) : overlay.params,
-    streamer_ids:
-      streamerIds !== undefined
-        ? JSON.stringify(normalizeStreamerIds(streamerIds))
-        : overlay.streamer_ids,
-    overlay_type:
-      overlayType !== undefined
-        ? JSON.stringify(normalizeOverlayType(overlayType))
-        : overlay.overlay_type,
+    params: params !== undefined ? normalizeParams(params) : overlay.params,
+    streamer_ids: streamerIds !== undefined ? normalizeStreamerIds(streamerIds) : overlay.streamer_ids,
+    overlay_type: overlayType !== undefined ? normalizeOverlayType(overlayType) : overlay.overlay_type,
     width: width !== undefined ? Number(width) : overlay.width,
     height: height !== undefined ? Number(height) : overlay.height,
     active: active !== undefined ? active : overlay.active,
   };
 
-  await db.run(
-    'UPDATE overlays SET route_path = ?, name = ?, folder_path = ?, entry_file = ?, notes = ?, params = ?, streamer_ids = ?, overlay_type = ?, width = ?, height = ?, active = ? WHERE id = ?',
-    updatedOverlay.route_path,
-    updatedOverlay.name,
-    updatedOverlay.folder_path,
-    updatedOverlay.entry_file,
-    updatedOverlay.notes,
-    updatedOverlay.params,
-    updatedOverlay.streamer_ids,
-    updatedOverlay.overlay_type,
-    updatedOverlay.width,
-    updatedOverlay.height,
-    updatedOverlay.active,
-    id,
-  );
+  await OverlaysModel.updateOne({ id }, { $set: updates });
 
-  return mapOverlayRow(updatedOverlay);
+  return mapOverlayRow({ ...overlay.toObject(), ...updates });
 }

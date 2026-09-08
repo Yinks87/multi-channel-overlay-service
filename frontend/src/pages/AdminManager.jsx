@@ -25,6 +25,7 @@ import {
   removeAdmin,
   updateAdminPermissions,
 } from '../api/adminApi';
+import { useAlert } from '../contexts/AlertContext';
 
 /* ── Constants ───────────────────────────────────────────────────────────── */
 
@@ -192,6 +193,8 @@ const AdminManager = () => {
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
 
+  const { showAlert } = useAlert();
+
   useEffect(() => {
     const cu = (() => {
       try {
@@ -219,15 +222,20 @@ const AdminManager = () => {
   const handleAdd = async () => {
     if (!userName.trim()) return;
     setAdding(true);
-    const result = await addAdmin({
-      userName: userName.trim(),
-      requesterId: JSON.parse(localStorage.getItem('currentUser'))?.id,
-    });
-    setUserName('');
-    if (result?.success) {
-      await loadAdmins();
+    try {
+      const result = await addAdmin({
+        userName: userName.trim(),
+        requesterId: JSON.parse(localStorage.getItem('currentUser'))?.id,
+      });
+      setUserName('');
+      if (result?.success) {
+        await loadAdmins();
+      }
+    } catch (e) {
+      showAlert({ message: e.message, severity: 'error' });
+    } finally {
+      setAdding(false);
     }
-    setAdding(false);
   };
 
   const handleRemove = async (userId) => {

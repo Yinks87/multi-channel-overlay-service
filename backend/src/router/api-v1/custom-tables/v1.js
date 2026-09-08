@@ -44,12 +44,12 @@ customTablesRouter.post(
   '/create',
   requireRole('owner', 'db:manage'),
   async (req, res, next) => {
-    const { tableName, schema } = req.body;
+    const { tableName, columns } = req.body;
 
-    if (!tableName || !schema || typeof schema !== 'object') {
+    if (!tableName || !Array.isArray(columns) || !columns.length) {
       return res.status(400).json({
         success: false,
-        error: 'Missing or invalid tableName or schema',
+        error: 'Missing or invalid tableName or columns',
       });
     }
 
@@ -61,14 +61,8 @@ customTablesRouter.post(
       });
     }
 
-    const columns = Object.keys(schema)
-      .map((key) => `${key} ${schema[key]}`)
-      .join(', ');
     try {
-      const createdTableName = await createCustomDbTable({
-        tableName,
-        schema: columns,
-      });
+      const createdTableName = await createCustomDbTable({ tableName, columns });
       res.status(201).json({
         message: `Custom table ${createdTableName} created successfully`,
       });

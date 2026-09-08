@@ -5,10 +5,8 @@ import {
   processBTTVEmotes,
   processFFZEmotes,
 } from './utils.js';
-import {
-  deleteGlobalEmotes,
-  insertGlobalEmotes,
-} from '../../db/services/emoteService.js';
+
+import GlobalEmotesModel from '../../db/schemas/global-emotes.js';
 
 export const fetchGlobalEmotes = async () => {
   try {
@@ -18,13 +16,20 @@ export const fetchGlobalEmotes = async () => {
       getGlobal7tvEmotes(),
     ]);
 
-    await deleteGlobalEmotes();
+    await GlobalEmotesModel.collection.drop();
 
-    await insertGlobalEmotes({
-      bttv: bttvEmotes,
-      ffz: ffzEmotes,
-      sevenTv: sevenTvEmotes,
+    await GlobalEmotesModel.create({
+      bttv: {
+        ...bttvEmotes,
+      },
+      ffz: {
+        ...ffzEmotes,
+      },
+      '7tv': {
+        ...sevenTvEmotes,
+      },
     });
+
 
     console.log('Global emotes fetched and saved successfully.');
   } catch (error) {

@@ -22,6 +22,17 @@ dotenvConfig();
  * @prop {string} JWT_EXPIRY - The expiry time for JWT tokens (e.g., 1h, 2d, etc.).
  * @prop {string} DB_PATH - The file path for the SQLite database.
  * @prop {string} MODE - The mode of the application (e.g., 'production' or 'development').
+ * 
+ * @prop {string} DEV_MONGO_DB_USER - Database user for development
+ * @prop {string} DEV_MONGO_DB_PASS - Database password for development
+ * @prop {string} DEV_MONGO_DB_HOST - Database host for development
+ * @prop {string} DEV_MONGO_DB_NAME - Database name for development
+ * 
+ * @prop {string} PROD_MONGO_DB_USER - Database user for production
+ * @prop {string} PROD_MONGO_DB_PASS - Database password for production
+ * @prop {string} PROD_MONGO_DB_HOST - Database host for production
+ * @prop {string} PROD_MONGO_DB_NAME - Database name for production
+
  */
 
 /**

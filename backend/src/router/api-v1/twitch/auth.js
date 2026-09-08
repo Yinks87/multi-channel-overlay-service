@@ -5,15 +5,10 @@ export const twitchAuthRouter = express.Router();
 import config from '../../../config.js';
 import { generateToken } from '../../../middleware/auth.js';
 import {
-  getUserByNormalizedUserName,
-  createUser,
-  updateUser,
   addRoleToUser,
   removeRoleFromUser,
   isModeratorOfAnyRegisteredStreamer,
-  getUserByTwitchId,
   removeUser,
-  getUserById,
 } from '../../../db/services/userService.js';
 import {
   getModeratedChannels,
@@ -22,6 +17,7 @@ import {
 } from '../../../twitch/api.js';
 import { addStreamerEventSub } from './connect-eventsubs.js';
 import { fetchUserEmotes } from '../../../twitch/twitch-emotes/fetch-user-emotes.js';
+import UsersModel from '../../../db/schemas/users.js';
 
 const TWITCH_CLIENT_ID = config.TWITCH_CLIENT_ID;
 const TWITCH_CLIENT_SECRET = config.TWITCH_CLIENT_SECRET;
@@ -258,45 +254,42 @@ twitchAuthRouter.get('/auth', async (req, res) => {
 
     const isOwner = user.id === OWNER_TWITCH_ID;
 
-    const userExists = await getUserByNormalizedUserName({
+    const userExists = await UsersModel.findOne({
       normalizedUserName: user.login.toLowerCase(),
     });
 
     if (!userExists) {
       const initialRoles = isOwner ? ['owner'] : [];
 
-      await createUser({
-        user: {
-          userName: user.display_name,
-          twitch: JSON.stringify(twitchData),
-          normalizedUserName: user.login.toLowerCase(),
-          roles: JSON.stringify(initialRoles),
-          moderatedChannels: JSON.stringify(moderators || []),
-        },
+      await UsersModel.create({
+        id: user.id,
+        userName: user.display_name,
+        twitch: twitchData,
+        normalizedUserName: user.login.toLowerCase(),
+        roles: initialRoles,
+        moderatedChannels: moderators || [],
       });
 
       // fetch user emotes for the newly created user
       await fetchUserEmotes({ twitchId: twitchData.id });
     } else {
-      const updateData = {
-        twitch: JSON.stringify(twitchData),
-        moderatedChannels: JSON.stringify(moderators || []),
-      };
-      // Ensure the owner always has the "owner" role even if it was missing
-      if (isOwner && !userExists.roles.includes('owner')) {
-        updateData.roles = JSON.stringify(['owner', ...userExists.roles]);
-      }
-      await updateUser({
-        key: 'id',
-        keyValue: userExists.id,
-        updateData,
-      });
+      await UsersModel.findOneAndUpdate(
+        { id: userExists.id },
+        {
+          twitch: twitchData,
+          moderatedChannels: moderators || [],
+          ...(isOwner && !userExists.roles.includes('owner')
+            ? { roles: ['owner', ...userExists.roles] }
+            : {}),
+        },
+        { upsert: true },
+      );
 
       await fetchUserEmotes({ twitchId: twitchData.id });
     }
 
     // Fetch the final, up-to-date user record to build the JWT
-    const finalUser = await getUserByNormalizedUserName({
+    const finalUser = await UsersModel.findOne({
       normalizedUserName: user.login.toLowerCase(),
     });
 
@@ -322,7 +315,7 @@ twitchAuthRouter.get('/auth', async (req, res) => {
     }
 
     // Re-fetch so the JWT reflects any role changes made above
-    const updatedUser = await getUserByNormalizedUserName({
+    const updatedUser = await UsersModel.findOne({
       normalizedUserName: user.login.toLowerCase(),
     });
 
@@ -398,14 +391,14 @@ twitchAuthRouter.delete('/revoke', async (req, res, next) => {
     if (!userId) {
       return res.status(400).json({ error: 'Missing userId query parameter' });
     }
-    const user = await getUserById({ userId });
+    const user = await UsersModel.findOne({ id: userId });
     if (!user) {
       return res
         .status(404)
         .json({ error: 'User not found for the provided userId' });
     }
 
-    const access_token = JSON.parse(user.twitch).access_token;
+    const access_token = user.twitch.access_token;
     if (!access_token) {
       return res
         .status(400)

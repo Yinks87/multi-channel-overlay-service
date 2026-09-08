@@ -1,12 +1,7 @@
 import axios from 'axios';
 import { helixAPI, authAPI } from '../router/api-v1/twitch/auth.js';
 import config from '../config.js';
-import {
-  getUserById,
-  getUserByToken,
-  getUserByTwitchAccessToken,
-  updateUser,
-} from '../db/services/userService.js';
+import UsersModel from '../db/schemas/users.js';
 
 const CLIENT_ID = config.TWITCH_CLIENT_ID;
 const CLIENT_SECRET = config.TWITCH_CLIENT_SECRET;
@@ -94,38 +89,38 @@ export async function getUsers({ access_token, user_id, login }) {
 }
 
 export async function doTokenValidationProcess({ access_token }) {
-  const user = await getUserByTwitchAccessToken({ access_token });
+  const user = await UsersModel.findOne({
+    'twitch.access_token': access_token,
+  });
 
   if (!user) {
     throw new Error('User not found for the provided access token.');
   }
 
-  const refresh_token = JSON.parse(user.twitch).refresh_token;
+  const refresh_token = user.twitch.refresh_token;
 
   const validAccessToken = await validateAccessToken(access_token);
   if (!validAccessToken) {
     const newAccessToken = await getAccessToken(refresh_token);
     if (newAccessToken) {
       console.log(
-        `Successfully refreshed Twitch access token for user ${JSON.parse(user.twitch).display_name}`,
+        `Successfully refreshed Twitch access token for user ${user.twitch.display_name}`,
       );
 
       const updateTwitchData = {
-        ...JSON.parse(user.twitch),
+        ...user.twitch,
         access_token: newAccessToken.access_token,
         refresh_token: newAccessToken.refresh_token,
       };
 
-      await updateUser({
-        key: 'id',
-        keyValue: user.id,
-        updateData: {
-          twitch: JSON.stringify(updateTwitchData),
-        },
-      });
+      await UsersModel.findOneAndUpdate(
+        { id: user.id },
+        { twitch: updateTwitchData },
+        { upsert: true },
+      );
 
       console.log(
-        `Successfully updated Twitch data in the database for user ${JSON.parse(user.twitch).display_name}`,
+        `Successfully updated Twitch data in the database for user ${user.twitch.display_name}`,
       );
 
       return { access_token: newAccessToken.access_token, success: true };
@@ -287,6 +282,8 @@ export async function revokeTwitchAccessToken({ access_token }) {
  */
 
 export async function getChannelEmotes({ broadcaster_id, access_token }) {
+  console.log(broadcaster_id);
+  console.log(access_token);
   const qs = new URLSearchParams({
     broadcaster_id,
   });
