@@ -14,7 +14,6 @@ const JWT_EXPIRY = config.JWT_EXPIRY || '7d';
  * @returns {string} Signed JWT.
  */
 export function generateToken(payload) {
-  console.log('Generating token with payload:', payload);
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
