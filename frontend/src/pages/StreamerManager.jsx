@@ -2,6 +2,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
 import {
   Avatar,
   Box,
@@ -17,6 +18,7 @@ import {
 import {
   addRegisteredStreamer,
   fetchRegisteredStreamers,
+  removeAllEventSubscriptions,
   removeRegisteredStreamer,
   setStreamerConnected,
 } from '../api/registeredStreamerApi';
@@ -107,6 +109,7 @@ const StreamerManager = () => {
   const [userName, setUserName] = useState('');
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const [removingAllEventSubs, setRemovingAllEventSubs] = useState(false);
 
   useEffect(() => {
     const cu = (() => {
@@ -131,6 +134,17 @@ const StreamerManager = () => {
     const data = await fetchRegisteredStreamers();
     setStreamers(data ?? []);
     setLoading(false);
+  };
+
+  const handleRemoveAllEventSubs = async() => {
+    setRemovingAllEventSubs(true);
+    try{
+      await removeAllEventSubscriptions();
+    } catch (e) {
+      showAlert({ message: e.message, severity: 'error' });
+    } finally {
+      setRemovingAllEventSubs(false);
+    }
   };
 
   const handleAdd = async () => {
@@ -218,6 +232,14 @@ const StreamerManager = () => {
             disabled={adding || !userName.trim()}
           >
             Add Streamer
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<RemoveCircleIcon />}
+            onClick={handleRemoveAllEventSubs}
+            disabled={removingAllEventSubs}
+          >
+            Remove all Event Subs
           </Button>
         </AddRow>
       </PageHeader>

@@ -219,6 +219,37 @@ async function deleteStreamerSubscriptions({ broadcasterId }) {
   }
 }
 
+export async function deleteAllEventSubscriptions() {
+  try {
+    const appToken = await getAppAccessToken();
+
+    const response = await helixAPI.get('/eventsub/subscriptions', {
+      headers: {
+        Authorization: `Bearer ${appToken}`,
+        'Client-ID': CLIENT_ID,
+      },
+    });
+
+    const { data = [] } = response.data;
+
+    await Promise.allSettled(
+      data.map((sub) =>
+        helixAPI.delete(`/eventsub/subscriptions?id=${sub.id}`, {
+          headers: {
+            Authorization: `Bearer ${appToken}`,
+            'Client-ID': CLIENT_ID,
+          },
+        }),
+      ),
+    );
+
+    console.log('[EventSub] All subscriptions deleted successfully.');
+
+  } catch (err) {
+    console.error(`[EventSub] Error deleting all subscriptions: ${err.message}`);
+  }
+}
+
 async function subscribeToEvent({
   access_token,
   broadcaster,

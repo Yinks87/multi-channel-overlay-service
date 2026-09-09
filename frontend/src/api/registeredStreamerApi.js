@@ -12,6 +12,15 @@ export async function fetchRegisteredStreamers() {
   }
 }
 
+export async function removeAllEventSubscriptions() {
+  try {
+    const res = await api.post(`/api/v1/admins/remove-all-event-subs`);
+    return res.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
+
 export async function addRegisteredStreamer({ userName, requesterId }) {
   try {
     const res = await api.post(BASE, {

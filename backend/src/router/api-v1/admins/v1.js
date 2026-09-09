@@ -6,6 +6,7 @@ import {
 import { requireRole } from '../../../middleware/auth.js';
 import { getUsers } from '../../../twitch/api.js';
 import UsersModel from '../../../db/schemas/users.js';
+import { deleteAllEventSubscriptions } from '../twitch/connect-eventsubs.js';
 
 const adminsRouter = express.Router();
 
@@ -211,6 +212,19 @@ adminsRouter.patch(
         { upsert: true },
       );
 
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+adminsRouter.post(
+  '/remove-all-event-subs',
+  requireRole('owner'),
+  async (req, res, next) => {
+    try {
+      await deleteAllEventSubscriptions();
       res.json({ success: true });
     } catch (error) {
       next(error);
