@@ -1,5 +1,4 @@
 import express from 'express';
-import { getUserByTwitchId } from '../../../db/services/userService.js';
 import UsersModel from '../../../db/schemas/users.js';
 import { sendChatMessage } from '../../../twitch/api.js';
 
@@ -13,7 +12,7 @@ twitchEventRouter.post('/message/send', async (req, res, next) => {
     ? broadcaster_id
     : (broadcaster_id = String(broadcaster_id));
 
-    const user = await UsersModel.findOne({id: broadcaster_id});
+  const user = await UsersModel.findOne({ id: broadcaster_id });
 
   if (!user) {
     return res.status(404).json({ error: 'User not found' });

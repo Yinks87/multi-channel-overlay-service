@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 
 import config from './config.js';
-import { openDb } from './db/index.js';
 import baseRouter from './router/base-router.js';
 import {
   overlayDispatcher,
@@ -48,8 +47,6 @@ const port = config.BACKEND_PORT || 3000;
 
 async function startService() {
   try {
-    // await openDb(config.MODE !== 'development' ? config.DB_PATH : undefined);
-
     const server = app.listen(port, () => {
       console.log(`Server is running on http://${host}:${port}`);
     });

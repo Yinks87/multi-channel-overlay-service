@@ -50,30 +50,3 @@ export async function setStreamerConnected({ userId, connected }) {
     handleApiError(e);
   }
 }
-
-// export async function fetchRegisteredStreamers() {
-//   try {
-//     const res = await api.get(BASE);
-//     return res.data.data;
-//   } catch (e) {
-//     handleApiError(e);
-//   }
-// }
-
-// export async function addRegisteredStreamer({ userName }) {
-//   try {
-//     const res = await api.post(BASE, { userName });
-//     return res.data;
-//   } catch (e) {
-//     handleApiError(e);
-//   }
-// }
-
-// export async function removeRegisteredStreamer({ userId }) {
-//   try {
-//     const res = await api.delete(`${BASE}/${userId}`);
-//     return res.data;
-//   } catch (e) {
-//     handleApiError(e);
-//   }
-// }

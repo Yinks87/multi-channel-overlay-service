@@ -1,6 +1,5 @@
 import express from 'express';
 import {
-  getUsersByRole,
   addRoleToUser,
   isModeratorOfAnyRegisteredStreamer,
 } from '../../../db/services/userService.js';
