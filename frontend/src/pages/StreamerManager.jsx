@@ -136,9 +136,9 @@ const StreamerManager = () => {
     setLoading(false);
   };
 
-  const handleRemoveAllEventSubs = async() => {
+  const handleRemoveAllEventSubs = async () => {
     setRemovingAllEventSubs(true);
-    try{
+    try {
       await removeAllEventSubscriptions();
     } catch (e) {
       showAlert({ message: e.message, severity: 'error' });

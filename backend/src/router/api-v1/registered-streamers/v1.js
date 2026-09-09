@@ -38,7 +38,7 @@ registeredStreamersRouter.get('/', async (req, res, next) => {
         userName,
         normalizedUserName,
         roles,
-        connected: connected !== 0,
+        connected: !!connected,
       }),
     );
 
