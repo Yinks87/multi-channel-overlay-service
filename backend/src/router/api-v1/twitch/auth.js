@@ -345,8 +345,8 @@ twitchAuthRouter.get('/auth', async (req, res) => {
       profileImageUrl: user.profile_image_url,
     });
 
-    // Connect/refresh EventSub if this user is a streamer with connected = 1
-    if (updatedUser.roles.includes('streamer') && updatedUser.connected !== 0) {
+    // Connect/refresh EventSub only if registered as a streamer and not explicitly disconnected
+    if (updatedUser.roles.includes('streamer') && updatedUser.connected !== false) {
       addStreamerEventSub({ access_token }).catch((err) =>
         console.error(
           `[EventSub] Failed to subscribe on login: ${err.message}`,

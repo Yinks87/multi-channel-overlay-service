@@ -4,6 +4,7 @@ export async function getAllStreamersAccessTokens() {
   const usersWithTokens = await UsersModel.find({
     'twitch.access_token': { $exists: true },
     roles: { $in: ['streamer'] },
+    connected: { $ne: false },
   });
 
   return usersWithTokens.map((s) => s.twitch.access_token);

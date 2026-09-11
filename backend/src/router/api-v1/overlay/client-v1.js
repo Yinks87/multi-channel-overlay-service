@@ -29,7 +29,6 @@ function extractOverlayPath(req) {
 
 export function getClientCounts() {
   const counts = {};
-  console.log(overlayClients.entries());
   for (const [path, set] of overlayClients) {
     counts[path] = set.size;
   }
@@ -73,7 +72,6 @@ clientV1Router.get('/', (req, res) => {
   }
 
   clients.set(res, topics);
-  console.log('Client connected. Total clients:', clients.size);
   broadcastClientCounts();
 
   req.on('close', () => {
