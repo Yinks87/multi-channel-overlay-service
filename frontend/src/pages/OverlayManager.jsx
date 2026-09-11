@@ -32,6 +32,7 @@ import FolderIcon from '@mui/icons-material/Folder';
 import RouteIcon from '@mui/icons-material/AltRoute';
 import ArticleIcon from '@mui/icons-material/Article';
 import CopyAllIcon from '@mui/icons-material/CopyAll';
+import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
 import {
   fetchOverlays,
   createOverlay,
@@ -48,6 +49,7 @@ const system = import.meta.env.VITE_PLATFORM;
 const BACKEND_ORIGIN = api.defaults.baseURL;
 const SERVICE_URL =
   import.meta.env.VITE_BASE_OVERLAY_SERVICE_URL ?? '/overlay-service';
+const SSE_ENDPOINT = import.meta.env.VITE_SSE_ENDPOINT ?? '/clients';
 
 function normalizeParams(params) {
   if (!params || typeof params !== 'object' || Array.isArray(params)) {
@@ -202,6 +204,30 @@ const OverlayActions = ({ url, dragUrl, active }) => {
   );
 };
 
+/* ── ClientCountBadge ───────────────────────────────────────────────────── */
+
+const ClientCountBadge = ({ count }) => {
+  if (!count) return null;
+  return (
+    <Tooltip title={`${count} client${count !== 1 ? 's' : ''} connected`}>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.4,
+          color: '#4caf50',
+          fontSize: 11,
+          fontWeight: 700,
+          flexShrink: 0,
+        }}
+      >
+        <PeopleAltIcon sx={{ fontSize: 13 }} />
+        {count}
+      </Box>
+    </Tooltip>
+  );
+};
+
 /* ── AdminOverlayCard ────────────────────────────────────────────────────── */
 
 const AdminOverlayCard = ({
@@ -210,6 +236,7 @@ const AdminOverlayCard = ({
   onDelete,
   onToggle,
   streamers = [],
+  clientCount = 0,
 }) => {
   const { showAlert } = useAlert();
   const url = overlayUrl(overlay);
@@ -251,6 +278,7 @@ const AdminOverlayCard = ({
             >
               {overlay.name}
             </Typography>
+            <ClientCountBadge count={clientCount} />
           </Box>
 
           <Box
@@ -430,7 +458,7 @@ const AdminOverlayCard = ({
 
 /* ── StreamerOverlayCard ─────────────────────────────────────────────────── */
 
-const StreamerOverlayCard = ({ overlay, streamers = [] }) => {
+const StreamerOverlayCard = ({ overlay, streamers = [], clientCount = 0 }) => {
   const url = overlayUrl(overlay);
   const theme = useTheme();
 
@@ -456,6 +484,7 @@ const StreamerOverlayCard = ({ overlay, streamers = [] }) => {
           >
             {overlay.name}
           </Typography>
+          <ClientCountBadge count={clientCount} />
         </Box>
         <Box
           sx={{
@@ -1095,6 +1124,7 @@ const OverlayManager = () => {
   const [formOpen, setFormOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [clientCounts, setClientCounts] = useState({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1114,18 +1144,50 @@ const OverlayManager = () => {
     setLoading(true);
     setError('');
     fetchOverlays()
-      .then((data) => { if (active) setOverlays(data ?? []); })
-      .catch((e) => { if (active) setError(e.message); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+      .then((data) => {
+        if (active) setOverlays(data ?? []);
+      })
+      .catch((e) => {
+        if (active) setError(e.message);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     let active = true;
     fetchRegisteredStreamers()
-      .then((data) => { if (active) setStreamers(data ?? []); })
+      .then((data) => {
+        if (active) setStreamers(data ?? []);
+      })
       .catch(() => {});
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // Fetch initial client counts and keep them live via SSE
+  useEffect(() => {
+    api
+      .get('/api/v1/overlay/client-counts')
+      .then((res) => setClientCounts(res.data.data ?? {}))
+      .catch(() => {});
+
+    const source = new EventSource(
+      `${BACKEND_ORIGIN}${SSE_ENDPOINT}?topics=_client-counts`,
+    );
+    source.addEventListener('_client-counts', (e) => {
+      try {
+        setClientCounts(JSON.parse(e.data));
+      } catch {
+        /* ignore */
+      }
+    });
+    return () => source.close();
   }, []);
 
   const handleEdit = (overlay) => {
@@ -1219,12 +1281,14 @@ const OverlayManager = () => {
                 onDelete={setDeleteTarget}
                 onToggle={load}
                 streamers={streamers}
+                clientCount={clientCounts[`${o.route_path}/${o.entry_file}`] ?? 0}
               />
             ) : (
               <StreamerOverlayCard
                 key={o.id}
                 overlay={o}
                 streamers={streamers}
+                clientCount={clientCounts[`${o.route_path}/${o.entry_file}`] ?? 0}
               />
             ),
           )}

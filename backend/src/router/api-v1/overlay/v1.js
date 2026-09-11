@@ -14,6 +14,7 @@ import {
   unregisterOverlay,
 } from '../../../overlays/overlays-registry.js';
 import { requireRole } from '../../../middleware/auth.js';
+import { getClientCounts } from './client-v1.js';
 
 const overlayRouter = express.Router();
 const execFileAsync = promisify(execFile);
@@ -52,6 +53,10 @@ overlayRouter.get(
 );
 
 // GET: any authenticated user — owners/managers see all; others see only their assigned or unassigned active overlays
+overlayRouter.get('/client-counts', requireRole(), (req, res) => {
+  res.json({ success: true, data: getClientCounts() });
+});
+
 overlayRouter.get('/', requireRole(), async (req, res) => {
   const { roles, sub: userId } = req.currentUser;
   const canManage = roles.includes('owner') || roles.includes('overlay:manage');
