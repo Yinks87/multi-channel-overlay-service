@@ -25,12 +25,10 @@ overlayRouter.get(
   requireRole('owner', 'overlay:manage'),
   async (req, res, next) => {
     if (process.platform !== 'win32') {
-      return res
-        .status(400)
-        .json({
-          success: false,
-          error: 'Folder picker is only supported on Windows',
-        });
+      return res.status(400).json({
+        success: false,
+        error: 'Folder picker is only supported on Windows',
+      });
     }
     try {
       const script = [
@@ -84,6 +82,7 @@ overlayRouter.post(
       notes,
       params,
       streamerIds,
+      webOverlay,
       overlayType,
       width,
       height,
@@ -109,6 +108,7 @@ overlayRouter.post(
       notes,
       params,
       streamerIds,
+      webOverlay,
       overlayType,
       width,
       height,

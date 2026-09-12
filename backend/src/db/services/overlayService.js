@@ -47,12 +47,27 @@ export async function createOverlay({
   notes = '',
   params = {},
   streamerIds = [],
+  webOverlay = false,
   overlayType = ['streamer'],
   width = 800,
   height = 600,
 }) {
   const id = randomUUID();
   const now = new Date().toISOString();
+
+  console.log({
+    routePath,
+    name,
+    folderPath,
+    entryFile,
+    notes,
+    params,
+    streamerIds,
+    webOverlay,
+    overlayType,
+    width,
+    height,
+  });
 
   await OverlaysModel.create({
     id,
@@ -64,6 +79,7 @@ export async function createOverlay({
     params: normalizeParams(params),
     streamer_ids: normalizeStreamerIds(streamerIds),
     overlay_type: normalizeOverlayType(overlayType),
+    web_overlay: webOverlay,
     width,
     height,
     active: true,
@@ -155,6 +171,7 @@ export async function updateOverlay({
   notes,
   params,
   streamerIds,
+  webOverlay,
   overlayType,
   width,
   height,
@@ -170,8 +187,15 @@ export async function updateOverlay({
     entry_file: entryFile ?? overlay.entry_file,
     notes: notes !== undefined ? notes : overlay.notes,
     params: params !== undefined ? normalizeParams(params) : overlay.params,
-    streamer_ids: streamerIds !== undefined ? normalizeStreamerIds(streamerIds) : overlay.streamer_ids,
-    overlay_type: overlayType !== undefined ? normalizeOverlayType(overlayType) : overlay.overlay_type,
+    streamer_ids:
+      streamerIds !== undefined
+        ? normalizeStreamerIds(streamerIds)
+        : overlay.streamer_ids,
+    web_overlay: webOverlay !== undefined ? webOverlay : overlay.web_overlay,
+    overlay_type:
+      overlayType !== undefined
+        ? normalizeOverlayType(overlayType)
+        : overlay.overlay_type,
     width: width !== undefined ? Number(width) : overlay.width,
     height: height !== undefined ? Number(height) : overlay.height,
     active: active !== undefined ? active : overlay.active,

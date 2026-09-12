@@ -47,6 +47,7 @@ const SYSTEM_SCHEMAS = [
       col('route_path', 'TEXT', { required: true }),
       col('folder_path', 'TEXT', { required: true }),
       col('entry_file', 'TEXT', { required: true }),
+      col('web_overlay', 'BOOLEAN'),
       col('params', 'OBJECT'),
       col('notes', 'TEXT'),
       col('streamer_ids', 'STRING[]'),

@@ -35,6 +35,10 @@ const OverlaysSchema = new Schema(
       type: [String],
       default: [],
     },
+    web_overlay: {
+      type: Boolean,
+      default: false,
+    },
     overlay_type: {
       type: [String],
       default: [],
