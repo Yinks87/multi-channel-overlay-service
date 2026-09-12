@@ -3,27 +3,31 @@ import LiveTvIcon from '@mui/icons-material/LiveTv';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import RemoveCircleIcon from '@mui/icons-material/RemoveCircle';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import {
   Avatar,
   Box,
   Button,
   Chip,
   CircularProgress,
+  Divider,
   IconButton,
   Switch,
   TextField,
   Tooltip,
   Typography,
+  useTheme,
 } from '@mui/material';
 import {
   addRegisteredStreamer,
   fetchRegisteredStreamers,
+  refetchUserEmotes,
   removeAllEventSubscriptions,
   removeRegisteredStreamer,
   setStreamerConnected,
 } from '../api/registeredStreamerApi';
 import styled from '@emotion/styled';
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAlert } from '../contexts/AlertContext';
 
@@ -31,70 +35,104 @@ import { useAlert } from '../contexts/AlertContext';
 
 const StreamerCard = ({ streamer, onRemove, onToggleConnected }) => {
   const baseRoles = streamer.roles?.filter((r) => !r.includes(':')) ?? [];
+  const theme = useTheme();
 
   return (
     <Card>
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar
-          src={streamer.twitch.profile_image_url}
-          alt={streamer.twitch.display_name || streamer.userName}
-          sx={{
-            width: 38,
-            height: 38,
-            bgcolor: '#1e3a1e',
-            color: '#4caf50',
-            fontWeight: 700,
-            fontSize: 16,
-          }}
-        />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" fontWeight={600} noWrap>
-            {streamer.twitch.display_name || streamer.userName}
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
-            {baseRoles.map((r) => (
-              <Chip
-                key={r}
-                label={r}
-                size="small"
-                color={r === 'streamer' ? 'success' : 'default'}
-                sx={{ height: 17, fontSize: 10, fontWeight: 600 }}
-              />
-            ))}
+      <Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Avatar
+            src={streamer.twitch.profile_image_url}
+            alt={streamer.twitch.display_name || streamer.userName}
+            sx={{
+              width: 38,
+              height: 38,
+              bgcolor: '#1e3a1e',
+              color: '#4caf50',
+              fontWeight: 700,
+              fontSize: 16,
+            }}
+          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" fontWeight={600} noWrap>
+              {streamer.twitch.display_name || streamer.userName}
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, mt: 0.3, flexWrap: 'wrap' }}>
+              {baseRoles.map((r) => {
+                const colorMap = {
+                  owner: theme.palette.owner.main,
+                  streamer: theme.palette.streamer.main,
+                  moderator: theme.palette.moderator.main,
+                  admin: theme.palette.admin.main,
+                };
+
+                return (
+                  <Chip
+                    key={r}
+                    label={r}
+                    size="small"
+                    sx={{
+                      height: 17,
+                      fontSize: 10,
+                      fontWeight: 700,
+                      bgcolor: `${colorMap[r] ?? '#555'}22`,
+                      color: colorMap[r] ?? '#aaa',
+                      border: `1px solid ${colorMap[r] ?? '#555'}55`,
+                      textTransform: 'capitalize',
+                    }}
+                  />
+                );
+              })}
+            </Box>
           </Box>
-        </Box>
-        {!streamer.twitch.hasAccessToken && (
-          <Tooltip title="Streamer hasn't logged in yet — EventSub not connected">
-            <WarningAmberIcon
-              sx={{ fontSize: 18, color: '#ff9800', flexShrink: 0 }}
+          {!streamer.twitch.hasAccessToken && (
+            <Tooltip title="Streamer hasn't logged in yet — EventSub not connected">
+              <WarningAmberIcon
+                sx={{ fontSize: 18, color: '#ff9800', flexShrink: 0 }}
+              />
+            </Tooltip>
+          )}
+          <Tooltip
+            title={
+              streamer.connected ? 'Disconnect EventSub' : 'Connect EventSub'
+            }
+          >
+            <Switch
+              size="small"
+              checked={!!streamer.connected}
+              onChange={(e) => onToggleConnected(streamer.id, e.target.checked)}
+              disabled={!streamer.twitch.hasAccessToken}
+              color="success"
             />
           </Tooltip>
-        )}
-        <Tooltip
-          title={
-            streamer.connected ? 'Disconnect EventSub' : 'Connect EventSub'
-          }
-        >
-          <Switch
-            size="small"
-            checked={!!streamer.connected}
-            onChange={(e) => onToggleConnected(streamer.id, e.target.checked)}
-            disabled={!streamer.twitch.hasAccessToken}
-            color="success"
-          />
-        </Tooltip>
-        <Tooltip title="Remove streamer">
-          <IconButton
-            size="small"
-            onClick={() => onRemove(streamer.id)}
-            sx={{
-              color: 'rgba(255,255,255,0.3)',
-              '&:hover': { color: '#ff6b6b', bgcolor: 'rgba(255,80,80,0.1)' },
-            }}
-          >
-            <DeleteIcon sx={{ fontSize: 17 }} />
-          </IconButton>
-        </Tooltip>
+          <Tooltip title="Remove streamer">
+            <IconButton
+              size="small"
+              onClick={() => onRemove(streamer.id)}
+              sx={{
+                color: 'rgba(255,255,255,0.3)',
+                '&:hover': { color: '#ff6b6b', bgcolor: 'rgba(255,80,80,0.1)' },
+              }}
+            >
+              <DeleteIcon sx={{ fontSize: 17 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <Divider orientation="horizontal" variant="middle" sx={{ mt: 2 }} />
+        <Box sx={{ mt: 2 }}>
+          <Tooltip title="Refetch user emotes">
+            <Button
+              disabled={!streamer.twitch.hasAccessToken}
+              onClick={() => refetchUserEmotes({ userId: streamer.id })}
+              startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+              variant="outlined"
+              color="primary"
+              size="small"
+            >
+              Emotes
+            </Button>
+          </Tooltip>
+        </Box>
       </Box>
     </Card>
   );

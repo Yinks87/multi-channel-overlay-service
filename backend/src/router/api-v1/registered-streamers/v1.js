@@ -252,4 +252,49 @@ registeredStreamersRouter.patch(
   },
 );
 
+registeredStreamersRouter.post(
+  '/:id/refetch-emotes',
+  requireRole('owner', 'admin'),
+  async (req, res, next) => {
+    try {
+      const { id } = req.params;
+
+      const user = await UsersModel.findOne({ id });
+      if (!user) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'User not found' });
+      }
+
+      await fetchUserEmotes({ twitchId: id });
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
+registeredStreamersRouter.post(
+  '/refetch-all-emotes',
+  requireRole('owner', 'admin'),
+  async (req, res, next) => {
+    try {
+      const users = await UsersModel.find({
+        'twitch.access_token': { $exists: true },
+        roles: { $in: ['streamer'] },
+      });
+      const userIds = users.map((user) => user.id);
+
+      for (const id of userIds) {
+        await fetchUserEmotes({ twitchId: id });
+      }
+
+      res.json({ success: true });
+    } catch (error) {
+      next(error);
+    }
+  },
+);
+
 export default registeredStreamersRouter;

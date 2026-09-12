@@ -59,3 +59,21 @@ export async function setStreamerConnected({ userId, connected }) {
     handleApiError(e);
   }
 }
+
+export async function refetchUserEmotes({ userId }) {
+  try {
+    const res = await api.post(`${BASE}/${userId}/refetch-emotes`);
+    return res.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
+
+export async function refetchAllUsersEmotes() {
+  try {
+    const res = await api.post(`${BASE}/refetch-all-emotes`);
+    return res.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
