@@ -84,7 +84,6 @@ clientV1Router.get('/', (req, res) => {
         if (set.size === 0) overlayClients.delete(overlayPath);
       }
     }
-    console.log('Client disconnected. Total clients:', clients.size);
     broadcastClientCounts();
   });
 });

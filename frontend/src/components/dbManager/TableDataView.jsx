@@ -59,7 +59,7 @@ function SchemaBadges({ col }) {
   if (col.primaryKey) badges.push('PK');
   if (col.required && !col.primaryKey) badges.push('REQ');
   if (col.unique && !col.primaryKey) badges.push('UNI');
-  if (col.defaultValue !== null) badges.push('DEF');
+  if (col.default !== null) badges.push('DEF');
   if (!badges.length) return null;
   return (
     <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 0.5 }}>
@@ -82,13 +82,19 @@ function getInitialValue(col, initialValues) {
   const existing = initialValues?.[col.name];
   if (col.type === 'BOOLEAN') {
     if (existing !== undefined) return Boolean(existing);
-    if (col.defaultValue === 'true') return true;
-    if (col.defaultValue === 'false') return false;
+    if (col.default === 'true') return true;
+    if (col.default === 'false') return false;
     return false;
   }
   if (col.type === 'STRING[]')
     return Array.isArray(existing) ? existing.join('\n') : '';
-  if (col.type === 'OBJECT[]' || col.type === 'OBJECT')
+  if (col.type === 'NUMBER[]')
+    return Array.isArray(existing) ? existing.join('\n') : '';
+  if (
+    col.type === 'OBJECT[]' ||
+    col.type === 'ARRAY[]' ||
+    col.type === 'OBJECT'
+  )
     return existing != null
       ? JSON.stringify(existing, null, 2)
       : col.type === 'OBJECT'
@@ -128,7 +134,25 @@ function renderFieldInput(col, value, onChange, disabled) {
       />
     );
   }
-  if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+  if (col.type === 'NUMBER[]') {
+    return (
+      <TextField
+        key={col.name}
+        label={`${col.name} — one number per line`}
+        size="small"
+        multiline
+        minRows={2}
+        value={typeof value === 'string' ? value : ''}
+        disabled={disabled}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    );
+  }
+  if (
+    col.type === 'OBJECT[]' ||
+    col.type === 'ARRAY[]' ||
+    col.type === 'OBJECT'
+  ) {
     return (
       <TextField
         key={col.name}
@@ -138,7 +162,11 @@ function renderFieldInput(col, value, onChange, disabled) {
         minRows={3}
         value={typeof value === 'string' ? value : ''}
         disabled={disabled}
-        inputProps={{ style: { fontFamily: 'monospace', fontSize: '0.8rem' } }}
+        slotProps={{
+          input: {
+            style: { fontFamily: 'monospace', fontSize: '0.8rem' },
+          },
+        }}
         onChange={(e) => onChange(e.target.value)}
       />
     );
@@ -152,7 +180,6 @@ function renderFieldInput(col, value, onChange, disabled) {
         type="number"
         value={value ?? ''}
         disabled={disabled}
-        inputProps={{ step: 'any' }}
         onChange={(e) => onChange(e.target.value)}
       />
     );
@@ -187,12 +214,19 @@ function renderCellValue(col, value) {
       />
     );
   }
-  if (col.type === 'STRING[]' && Array.isArray(value)) {
+  if (
+    (col.type === 'STRING[]' || col.type === 'NUMBER[]') &&
+    Array.isArray(value)
+  ) {
     if (!value.length) return '[]';
     const preview = value.slice(0, 3).join(', ');
     return value.length > 3 ? `${preview} +${value.length - 3}` : preview;
   }
-  if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+  if (
+    col.type === 'OBJECT[]' ||
+    col.type === 'ARRAY[]' ||
+    col.type === 'OBJECT'
+  ) {
     const s = JSON.stringify(value);
     return (
       <Typography variant="caption" sx={{ fontFamily: 'monospace' }}>
@@ -243,7 +277,19 @@ const RowFormDialog = ({
           .map((s) => s.trim())
           .filter(Boolean);
         if (items.length) payload[col.name] = items;
-      } else if (col.type === 'OBJECT[]' || col.type === 'OBJECT') {
+      } else if (col.type === 'NUMBER[]') {
+        const items = String(val)
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map(Number)
+          .filter((n) => !isNaN(n));
+        if (items.length) payload[col.name] = items;
+      } else if (
+        col.type === 'OBJECT[]' ||
+        col.type === 'ARRAY[]' ||
+        col.type === 'OBJECT'
+      ) {
         const str = String(val).trim();
         if (str && str !== '[]' && str !== '{}') {
           try {

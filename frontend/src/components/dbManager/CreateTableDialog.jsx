@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import {
+  Autocomplete,
   Box,
   Button,
   Divider,
@@ -19,12 +20,13 @@ const makeColumn = () => ({
   required: false,
   unique: false,
   primaryKey: false,
-  defaultValue: '',
+  default: '',
 });
 
-const CreateTableDialog = ({ open, onClose, onCreated }) => {
+const CreateTableDialog = ({ open, onClose, onCreated, existingGroups = [] }) => {
   const { showAlert } = useAlert();
   const [tableName, setTableName] = useState('');
+  const [group, setGroup] = useState('');
   const [columns, setColumns] = useState([makeColumn()]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -64,24 +66,26 @@ const CreateTableDialog = ({ open, onClose, onCreated }) => {
       return;
     }
 
-    const cols = columns.map(({ name, type, required, unique, primaryKey, defaultValue }) => ({
+    const cols = columns.map(({ name, type, required, unique, primaryKey, default: defaultVal }) => ({
       name: name.trim(),
       type,
       required,
       unique,
       primaryKey,
-      defaultValue: defaultValue.trim() || null,
+      default: defaultVal.trim() || null,
     }));
+
+    const trimmedGroup = group.trim() || null;
 
     setLoading(true);
     setError('');
     try {
-      await createTable({ tableName: tableName.trim(), columns: cols });
+      await createTable({ tableName: tableName.trim(), columns: cols, group: trimmedGroup });
       showAlert({
         message: `Table "${tableName}" created successfully`,
         severity: 'success',
       });
-      onCreated();
+      onCreated({ tableName: tableName.trim(), group: trimmedGroup });
       handleClose();
     } catch (e) {
       setError(e.message);
@@ -92,6 +96,7 @@ const CreateTableDialog = ({ open, onClose, onCreated }) => {
 
   const handleClose = () => {
     setTableName('');
+    setGroup('');
     setColumns([makeColumn()]);
     setError('');
     onClose();
@@ -130,6 +135,22 @@ const CreateTableDialog = ({ open, onClose, onCreated }) => {
             onChange={(e) => setTableName(e.target.value)}
             placeholder="e.g. event_data"
             sx={{ maxWidth: 320 }}
+          />
+
+          <Autocomplete
+            freeSolo
+            options={existingGroups}
+            value={group}
+            onInputChange={(_, val) => setGroup(val.toLowerCase())}
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Group"
+                size="small"
+                placeholder="e.g. custom"
+                sx={{ maxWidth: 320 }}
+              />
+            )}
           />
 
           <Divider />

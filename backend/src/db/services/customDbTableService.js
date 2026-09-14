@@ -28,9 +28,9 @@ function buildQuery(key, keyValue) {
   return { [key]: keyValue };
 }
 
-export async function createCustomDbTable({ tableName, columns }) {
+export async function createCustomDbTable({ tableName, columns, group }) {
   await mongoose.connection.createCollection(tableName);
-  await CustomTableSchemaModel.create({ name: tableName, columns });
+  await CustomTableSchemaModel.create({ name: tableName, columns, group: group ?? null });
   return tableName;
 }
 
@@ -70,6 +70,11 @@ export async function getRowFromCustomDbTable({ tableName, key, keyValue }) {
 export async function getTableSchema(tableName) {
   const schema = await CustomTableSchemaModel.findOne({ name: tableName });
   return schema?.columns ?? [];
+}
+
+export async function getTableGroups() {
+  const schemas = await CustomTableSchemaModel.find({}, 'name group').lean();
+  return Object.fromEntries(schemas.map((s) => [s.name, s.group]));
 }
 
 export async function deleteRowFromCustomDbTable({ tableName, key, keyValue }) {

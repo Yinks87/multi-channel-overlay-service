@@ -15,7 +15,7 @@ const ColumnDefinitionSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    defaultValue: {
+    default: {
       type: String,
       default: null,
     },
@@ -37,6 +37,10 @@ const CustomTableSchemaSchema = new Schema(
       type: String,
       required: true,
       unique: true,
+    },
+    group: {
+      type: String,
+      default: null,
     },
     columns: {
       type: [ColumnDefinitionSchema],

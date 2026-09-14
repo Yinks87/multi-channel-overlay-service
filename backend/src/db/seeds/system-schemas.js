@@ -6,7 +6,7 @@ const col = (name, type, opts = {}) => ({
   required: opts.required ?? false,
   unique: opts.unique ?? false,
   primaryKey: opts.primaryKey ?? false,
-  defaultValue: opts.defaultValue ?? null,
+  default: opts.default ?? null,
 });
 
 const SYSTEM_SCHEMAS = [

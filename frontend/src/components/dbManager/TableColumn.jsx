@@ -12,11 +12,11 @@ import {
 
 import DeleteIcon from '@mui/icons-material/Delete';
 
-const TYPES = ['TEXT', 'NUMBER', 'DECIMAL', 'BOOLEAN', 'STRING[]', 'OBJECT[]', 'OBJECT'];
-const COMPLEX_TYPES = new Set(['BOOLEAN', 'STRING[]', 'OBJECT[]', 'OBJECT']);
+const TYPES = ['TEXT', 'NUMBER', 'DECIMAL', 'BOOLEAN', 'STRING[]', 'NUMBER[]', 'OBJECT[]', 'ARRAY[]', 'OBJECT'];
+const COMPLEX_TYPES = new Set(['BOOLEAN', 'STRING[]', 'NUMBER[]', 'OBJECT[]', 'ARRAY[]', 'OBJECT']);
 
 const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
-  const { id, name, type, required, unique, primaryKey, defaultValue } = column;
+  const { id, name, type, required, unique, primaryKey, default: defaultVal } = column;
 
   const set = (field, value) => onChange(id, field, value);
 
@@ -124,8 +124,8 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
       {type === 'BOOLEAN' ? (
         <Select
           size="small"
-          value={defaultValue}
-          onChange={(e) => set('defaultValue', e.target.value)}
+          value={defaultVal}
+          onChange={(e) => set('default', e.target.value)}
           displayEmpty
         >
           <MenuItem value="true">true</MenuItem>
@@ -135,9 +135,9 @@ const TableColumn = ({ column, onChange, onDelete, hasPrimaryKey, isOnly }) => {
         <TextField
           size="small"
           placeholder="Default"
-          value={defaultValue}
+          value={defaultVal}
           disabled={isComplex}
-          onChange={(e) => set('defaultValue', e.target.value)}
+          onChange={(e) => set('default', e.target.value)}
         />
       )}
 

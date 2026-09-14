@@ -8,6 +8,7 @@ import {
   insertDataIntoCustomDbTable,
   updateDataInCustomDbTable,
   getTableSchema,
+  getTableGroups,
   deleteRowFromCustomDbTable,
   getRowFromCustomDbTable,
 } from '../../../db/services/customDbTableService.js';
@@ -44,7 +45,7 @@ customTablesRouter.post(
   '/create',
   requireRole('owner', 'db:manage'),
   async (req, res, next) => {
-    const { tableName, columns } = req.body;
+    const { tableName, columns, group } = req.body;
 
     if (!tableName || !Array.isArray(columns) || !columns.length) {
       return res.status(400).json({
@@ -62,7 +63,7 @@ customTablesRouter.post(
     }
 
     try {
-      const createdTableName = await createCustomDbTable({ tableName, columns });
+      const createdTableName = await createCustomDbTable({ tableName, columns, group: group ?? null });
       res.status(201).json({
         message: `Custom table ${createdTableName} created successfully`,
       });
@@ -99,6 +100,19 @@ customTablesRouter.post(
       res
         .status(200)
         .json({ message: `Custom table ${tableName} deleted successfully` });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
+customTablesRouter.get(
+  '/groups',
+  requireRole('owner', 'db:manage'),
+  async (req, res, next) => {
+    try {
+      const groups = await getTableGroups();
+      res.json({ data: groups });
     } catch (err) {
       next(err);
     }

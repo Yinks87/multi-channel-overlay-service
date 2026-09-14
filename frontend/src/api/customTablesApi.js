@@ -21,10 +21,19 @@ export async function fetchAllTables() {
   }
 }
 
-export async function createTable({ tableName, columns }) {
+export async function createTable({ tableName, columns, group }) {
   try {
-    const res = await api.post(`${BASE}/create`, { tableName, columns });
+    const res = await api.post(`${BASE}/create`, { tableName, columns, group });
     return res.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
+
+export async function fetchTableGroups() {
+  try {
+    const res = await api.get(`${BASE}/groups`);
+    return res.data.data;
   } catch (e) {
     handleApiError(e);
   }
