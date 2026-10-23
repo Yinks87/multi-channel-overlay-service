@@ -13,6 +13,7 @@ import AdminManager from './pages/AdminManager';
 import StreamerManager from './pages/StreamerManager';
 import DatabaseManager from './pages/DatabaseManager';
 import OverlayManager from './pages/OverlayManager';
+import FileManager from './pages/FileManager';
 import Docs from './pages/Docs';
 import TwitchAuthCallback from './pages/TwitchAuthCallback';
 import NoAccess from './pages/NoAccess';
@@ -34,6 +35,7 @@ function App() {
             <Route path="streamers" element={<StreamerManager />} />
             <Route path="admins" element={<AdminManager />} />
             <Route path="overlay" element={<OverlayManager />} />
+            <Route path="files" element={<FileManager />} />
             <Route path="db" element={<DatabaseManager />} />
             <Route path="docs" element={<Docs />} />
           </Route>

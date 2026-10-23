@@ -7,6 +7,7 @@ import webhookRouter from './twitch/eventsub-webhook.js';
 import registeredStreamersRouter from './registered-streamers/v1.js';
 import adminsRouter from './admins/v1.js';
 import twitchEventRouter from './twitch/v1.js';
+import filesRouter from './files/v1.js';
 
 const api_v1_router = express.Router();
 
@@ -18,5 +19,6 @@ api_v1_router.use('/twitch/event', twitchEventRouter);
 api_v1_router.use('/twitch/eventsub-webhook', webhookRouter);
 api_v1_router.use('/registered-streamers', registeredStreamersRouter);
 api_v1_router.use('/admins', adminsRouter);
+api_v1_router.use('/files', filesRouter);
 
 export default api_v1_router;

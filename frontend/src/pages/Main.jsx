@@ -3,6 +3,7 @@ import MenuIcon from '@mui/icons-material/Menu';
 import CloseIcon from '@mui/icons-material/Close';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import DescriptionIcon from '@mui/icons-material/Description';
+import FolderIcon from '@mui/icons-material/Folder';
 import LayersIcon from '@mui/icons-material/Layers';
 import LiveTvIcon from '@mui/icons-material/LiveTv';
 import LogoutIcon from '@mui/icons-material/Logout';
@@ -47,6 +48,12 @@ const NAV_ITEMS = [
     path: '/main/overlay',
     icon: <LayersIcon sx={{ fontSize: 18 }} />,
     allowedRoles: ['owner', 'overlay:manage', 'overlay:read'],
+  },
+  {
+    label: 'Files',
+    path: '/main/files',
+    icon: <FolderIcon sx={{ fontSize: 18 }} />,
+    allowedRoles: ['owner', 'overlay:manage'],
   },
   {
     label: 'Database',
