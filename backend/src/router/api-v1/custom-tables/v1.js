@@ -63,7 +63,11 @@ customTablesRouter.post(
     }
 
     try {
-      const createdTableName = await createCustomDbTable({ tableName, columns, group: group ?? null });
+      const createdTableName = await createCustomDbTable({
+        tableName,
+        columns,
+        group: group ?? null,
+      });
       res.status(201).json({
         message: `Custom table ${createdTableName} created successfully`,
       });
@@ -181,8 +185,6 @@ customTablesRouter.post('/:tableName', async (req, res, next) => {
       error: 'Missing or invalid data',
     });
   }
-  console.log('Inserting data into custom table:', tableName, data);
-
   try {
     await insertDataIntoCustomDbTable({ tableName, data });
     res

@@ -1,6 +1,9 @@
+import config from '../../config.js';
 import AppSettingsModel from '../schemas/app-settings.js';
 
 const APP_SETTINGS_ID = 'app';
+
+const CLIENT_ID = config.TWITCH_CLIENT_ID;
 
 export async function getAppAccessTokenFromDb() {
   const row = await AppSettingsModel.findOne({ id: APP_SETTINGS_ID });
@@ -10,7 +13,7 @@ export async function getAppAccessTokenFromDb() {
 export async function saveAppAccessToken({ access_token }) {
   await AppSettingsModel.updateOne(
     { id: APP_SETTINGS_ID },
-    { access_token },
+    { access_token, client_id: CLIENT_ID },
     { upsert: true },
   );
 }
