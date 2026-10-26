@@ -1,10 +1,12 @@
 import express from 'express';
+import { randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
   createOverlay,
   getActiveOverlays,
   getAllOverlays,
+  getOverlayById,
   getOverlaysForStreamer,
   deleteOverlay,
   updateOverlay,
@@ -13,7 +15,7 @@ import {
   registerOverlay,
   unregisterOverlay,
 } from '../../../overlays/overlays-registry.js';
-import { requireRole } from '../../../middleware/auth.js';
+import { generateOverlayToken, requireRole } from '../../../middleware/auth.js';
 import { getClientCounts } from './client-v1.js';
 
 const overlayRouter = express.Router();
@@ -70,6 +72,32 @@ overlayRouter.get('/', requireRole(), async (req, res) => {
   res.json({ success: true, data: overlays ?? [] });
 });
 
+overlayRouter.get('/:id/access-token', requireRole(), async (req, res, next) => {
+  try {
+    const { roles, sub: userId } = req.currentUser;
+    const overlay = await getOverlayById(req.params.id);
+    if (!overlay) {
+      return res
+        .status(404)
+        .json({ success: false, error: 'Overlay not found' });
+    }
+
+    const canManage =
+      roles.includes('owner') || roles.includes('overlay:manage');
+    if (!canManage) {
+      const visible = await getOverlaysForStreamer({ userId, roles });
+      if (!visible.some((o) => o.id === overlay.id)) {
+        return res.status(403).json({ success: false, error: 'Forbidden' });
+      }
+    }
+
+    const token = generateOverlayToken({ userId, overlayId: overlay.id });
+    res.json({ success: true, data: { token } });
+  } catch (e) {
+    next(e);
+  }
+});
+
 overlayRouter.post(
   '/',
   requireRole('owner', 'overlay:manage'),
@@ -83,6 +111,7 @@ overlayRouter.post(
       params,
       streamerIds,
       webOverlay,
+      isProtected,
       overlayType,
       width,
       height,
@@ -94,13 +123,23 @@ overlayRouter.post(
       });
     }
 
+    const overlayId = randomUUID();
+
     try {
-      registerOverlay({ routePath, name, folderPath, entryFile });
+      registerOverlay({
+        routePath,
+        name,
+        folderPath,
+        entryFile,
+        overlayId,
+        isProtected: Boolean(isProtected),
+      });
     } catch (e) {
       return res.status(400).json({ success: false, error: e.message });
     }
 
     const id = await createOverlay({
+      id: overlayId,
       routePath,
       name,
       folderPath,
@@ -109,6 +148,7 @@ overlayRouter.post(
       params,
       streamerIds,
       webOverlay,
+      isProtected,
       overlayType,
       width,
       height,
@@ -187,6 +227,8 @@ overlayRouter.patch(
             routePath: existing.route_path,
             folderPath: existing.folder_path,
             entryFile: existing.entry_file,
+            overlayId: existing.id,
+            isProtected: existing.is_protected,
           });
         } catch (e) {
           return res.status(400).json({ success: false, error: e.message });

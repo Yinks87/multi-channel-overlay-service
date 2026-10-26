@@ -35,6 +35,7 @@ function mapOverlayRow(row) {
     ...doc,
     params: normalizeParams(doc.params ?? {}),
     streamer_ids: normalizeStreamerIds(doc.streamer_ids ?? []),
+    is_protected: Boolean(doc.is_protected),
     overlay_type: normalizeOverlayType(doc.overlay_type ?? []),
   };
 }
@@ -48,26 +49,13 @@ export async function createOverlay({
   params = {},
   streamerIds = [],
   webOverlay = false,
+  isProtected = false,
   overlayType = ['streamer'],
   width = 800,
   height = 600,
+  id = randomUUID(),
 }) {
-  const id = randomUUID();
   const now = new Date().toISOString();
-
-  console.log({
-    routePath,
-    name,
-    folderPath,
-    entryFile,
-    notes,
-    params,
-    streamerIds,
-    webOverlay,
-    overlayType,
-    width,
-    height,
-  });
 
   await OverlaysModel.create({
     id,
@@ -80,6 +68,7 @@ export async function createOverlay({
     streamer_ids: normalizeStreamerIds(streamerIds),
     overlay_type: normalizeOverlayType(overlayType),
     web_overlay: webOverlay,
+    is_protected: Boolean(isProtected),
     width,
     height,
     active: true,
@@ -87,6 +76,11 @@ export async function createOverlay({
   });
 
   return id;
+}
+
+export async function getOverlayById(id) {
+  const overlay = await OverlaysModel.findOne({ id });
+  return overlay ? mapOverlayRow(overlay) : null;
 }
 
 export async function getOverlaysForStreamer({ userId, roles = [] }) {
@@ -172,6 +166,7 @@ export async function updateOverlay({
   params,
   streamerIds,
   webOverlay,
+  isProtected,
   overlayType,
   width,
   height,
@@ -192,6 +187,8 @@ export async function updateOverlay({
         ? normalizeStreamerIds(streamerIds)
         : overlay.streamer_ids,
     web_overlay: webOverlay !== undefined ? webOverlay : overlay.web_overlay,
+    is_protected:
+      isProtected !== undefined ? Boolean(isProtected) : overlay.is_protected,
     overlay_type:
       overlayType !== undefined
         ? normalizeOverlayType(overlayType)

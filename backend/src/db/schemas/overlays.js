@@ -39,6 +39,10 @@ const OverlaysSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    is_protected: {
+      type: Boolean,
+      default: false,
+    },
     overlay_type: {
       type: [String],
       default: [],

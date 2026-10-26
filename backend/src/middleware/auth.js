@@ -17,6 +17,35 @@ export function generateToken(payload) {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRY });
 }
 
+// Overlay access tokens use a derived secret so they can never be used as API tokens.
+const OVERLAY_JWT_SECRET = `${JWT_SECRET}:overlay-access`;
+const OVERLAY_TOKEN_EXPIRY = config.OVERLAY_TOKEN_EXPIRY || '365d';
+
+/**
+ * Sign a long-lived token that grants access to a single protected overlay.
+ * @param {{ userId: string, overlayId: string }} params
+ * @returns {string}
+ */
+export function generateOverlayToken({ userId, overlayId }) {
+  return jwt.sign({ sub: userId, overlayId }, OVERLAY_JWT_SECRET, {
+    expiresIn: OVERLAY_TOKEN_EXPIRY,
+  });
+}
+
+/**
+ * Verify an overlay access token for a specific overlay.
+ * @returns {{ sub: string, overlayId: string, exp: number } | null}
+ */
+export function verifyOverlayToken(token, overlayId) {
+  if (typeof token !== 'string' || !token) return null;
+  try {
+    const payload = jwt.verify(token, OVERLAY_JWT_SECRET);
+    return payload.overlayId === overlayId ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Express middleware that validates the Bearer JWT in the Authorization header.
  * If requiredRoles are supplied, the token's `roles` array must contain at

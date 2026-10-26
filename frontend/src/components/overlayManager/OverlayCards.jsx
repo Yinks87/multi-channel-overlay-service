@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import styled from '@emotion/styled';
 import {
   Avatar,
@@ -18,7 +18,8 @@ import CheckIcon from '@mui/icons-material/Check';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import PeopleAltIcon from '@mui/icons-material/PeopleAlt';
-import { updateOverlay } from '../../api/overlayApi';
+import LockIcon from '@mui/icons-material/Lock';
+import { fetchOverlayAccessToken, updateOverlay } from '../../api/overlayApi';
 import { useAlert } from '../../contexts/AlertContext';
 import api from '../../api/api';
 import { normalizeParams } from './lib';
@@ -27,7 +28,7 @@ const BACKEND_ORIGIN = api.defaults.baseURL;
 const SERVICE_URL =
   import.meta.env.VITE_BASE_OVERLAY_SERVICE_URL ?? '/overlay-service';
 
-function buildOverlayUrl(overlay, extraParams = {}) {
+function buildOverlayUrl(overlay, extraParams = {}, accessToken = null) {
   const url = new URL(
     `${SERVICE_URL}${overlay.route_path}/${overlay.entry_file}`,
     `${BACKEND_ORIGIN}/`,
@@ -43,22 +44,55 @@ function buildOverlayUrl(overlay, extraParams = {}) {
     }
   });
 
+  if (accessToken) url.searchParams.set('token', accessToken);
+
   return url.toString();
 }
 
-function overlayUrl(overlay) {
-  return buildOverlayUrl(overlay);
+function overlayUrl(overlay, accessToken) {
+  return buildOverlayUrl(overlay, {}, accessToken);
 }
 
-function createDragUrl(overlay) {
-  return buildOverlayUrl(overlay, {
-    'layer-name': overlay.name,
-    'layer-width': overlay.width,
-    'layer-height': overlay.height,
-  });
+function createDragUrl(overlay, accessToken) {
+  return buildOverlayUrl(
+    overlay,
+    {
+      'layer-name': overlay.name,
+      'layer-width': overlay.width,
+      'layer-height': overlay.height,
+    },
+    accessToken,
+  );
 }
 
-const OverlayActions = ({ url, dragUrl, active, webOverlay = false }) => {
+// Protected overlays need a personal access token appended to their URL
+function useOverlayAccessToken(overlay) {
+  const [token, setToken] = useState(null);
+  const isProtected = Boolean(overlay.is_protected);
+
+  useEffect(() => {
+    if (!isProtected) return undefined;
+    let cancelled = false;
+    fetchOverlayAccessToken(overlay.id)
+      .then((t) => {
+        if (!cancelled) setToken(t);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [overlay.id, isProtected]);
+
+  return { token: isProtected ? token : null, ready: !isProtected || !!token };
+}
+
+const OverlayActions = ({
+  url,
+  dragUrl,
+  active,
+  webOverlay = false,
+  ready = true,
+}) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
@@ -94,7 +128,7 @@ const OverlayActions = ({ url, dragUrl, active, webOverlay = false }) => {
             href={url}
             target="_blank"
             rel="noreferrer"
-            disabled={!active}
+            disabled={!active || !ready}
             sx={{
               color: 'rgba(255,255,255,0.4)',
               '&:hover': { color: '#fff' },
@@ -108,6 +142,7 @@ const OverlayActions = ({ url, dragUrl, active, webOverlay = false }) => {
             variant="outlined"
             startIcon={<OpenInNewIcon sx={{ fontSize: 16 }} />}
             onClick={() => window.open(url, '_blank')}
+            disabled={!ready}
             color={copied ? 'success' : 'inherit'}
             sx={{ flex: 1, fontSize: 11, minWidth: 0 }}
           >
@@ -121,6 +156,7 @@ const OverlayActions = ({ url, dragUrl, active, webOverlay = false }) => {
         variant="outlined"
         startIcon={copied ? <CheckIcon /> : <ContentCopyIcon />}
         onClick={handleCopy}
+        disabled={!ready}
         color={copied ? 'success' : 'inherit'}
         sx={{ flex: 1, fontSize: 11, minWidth: 0 }}
       >
@@ -129,7 +165,7 @@ const OverlayActions = ({ url, dragUrl, active, webOverlay = false }) => {
 
       {!webOverlay && (
         <Tooltip title="Drag into OBS as a Browser Source" placement="top">
-          <DragWrapper draggable onDragStart={handleDragStart}>
+          <DragWrapper draggable={ready} onDragStart={handleDragStart}>
             <DragIndicatorIcon sx={{ fontSize: 14 }} />
             Drag to OBS
           </DragWrapper>
@@ -169,7 +205,8 @@ export const AdminOverlayCard = ({
   clientCount = 0,
 }) => {
   const { showAlert } = useAlert();
-  const url = overlayUrl(overlay);
+  const { token, ready } = useOverlayAccessToken(overlay);
+  const url = overlayUrl(overlay, token);
   const theme = useTheme();
 
   const handleToggle = async () => {
@@ -296,6 +333,14 @@ export const AdminOverlayCard = ({
           }}
         >
           <RouteTag>{overlay.route_path}</RouteTag>
+          {overlay.is_protected && (
+            <Chip
+              icon={<LockIcon sx={{ fontSize: '11px !important' }} />}
+              label="Protected"
+              size="small"
+              sx={{ height: 16, fontSize: '0.58rem', width: 'fit-content' }}
+            />
+          )}
         </Box>
 
         <Box
@@ -379,7 +424,8 @@ export const AdminOverlayCard = ({
         <OverlayActions
           url={url}
           webOverlay={overlay.web_overlay}
-          dragUrl={createDragUrl(overlay)}
+          dragUrl={createDragUrl(overlay, token)}
+          ready={ready}
           active={overlay.active}
         />
       </CardBody>
@@ -392,7 +438,8 @@ export const StreamerOverlayCard = ({
   streamers = [],
   clientCount = 0,
 }) => {
-  const url = overlayUrl(overlay);
+  const { token, ready } = useOverlayAccessToken(overlay);
+  const url = overlayUrl(overlay, token);
   const theme = useTheme();
 
   return (
@@ -525,7 +572,8 @@ export const StreamerOverlayCard = ({
 
         <OverlayActions
           url={url}
-          dragUrl={createDragUrl(overlay)}
+          dragUrl={createDragUrl(overlay, token)}
+          ready={ready}
           active={overlay.active}
           webOverlay={overlay.web_overlay}
         />

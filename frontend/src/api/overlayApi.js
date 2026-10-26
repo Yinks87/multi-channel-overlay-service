@@ -22,6 +22,7 @@ export async function createOverlay({
   params,
   streamerIds,
   webOverlay,
+  isProtected,
   overlayType,
   width,
   height,
@@ -36,11 +37,21 @@ export async function createOverlay({
       params,
       streamerIds,
       webOverlay,
+      isProtected,
       overlayType,
       width,
       height,
     });
     return res.data;
+  } catch (e) {
+    handleApiError(e);
+  }
+}
+
+export async function fetchOverlayAccessToken(id) {
+  try {
+    const res = await api.get(`${BASE}/${id}/access-token`);
+    return res.data.data.token;
   } catch (e) {
     handleApiError(e);
   }
@@ -65,6 +76,7 @@ export async function updateOverlay({
   params,
   streamerIds,
   webOverlay,
+  isProtected,
   overlayType,
   width,
   height,
@@ -80,6 +92,7 @@ export async function updateOverlay({
       params,
       streamerIds,
       webOverlay,
+      isProtected,
       overlayType,
       width,
       height,

@@ -60,6 +60,8 @@ async function startService() {
         routePath: overlay?.route_path,
         folderPath: overlay?.folder_path,
         entryFile: overlay?.entry_file,
+        overlayId: overlay?.id,
+        isProtected: overlay?.is_protected,
       });
     }
   } catch (error) {

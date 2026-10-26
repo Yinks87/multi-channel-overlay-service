@@ -39,6 +39,7 @@ const EMPTY_FORM = {
   params: {},
   streamerIds: [],
   webOverlay: false,
+  isProtected: false,
   overlayType: ['streamer'],
   width: 800,
   height: 600,
@@ -108,6 +109,7 @@ const OverlayFormDialog = ({
       params: normalizeParams(src.params),
       streamerIds: src.streamer_ids ?? [],
       webOverlay: src.web_overlay ?? false,
+      isProtected: src.is_protected ?? false,
       overlayType: src.overlay_type ?? ['streamer'],
       width: src.width ?? 800,
       height: src.height ?? 600,
@@ -127,9 +129,9 @@ const OverlayFormDialog = ({
             entryFile: initial.entry_file,
             notes: initial.notes ?? '',
             webOverlay: initial.web_overlay ?? false,
+            isProtected: initial.is_protected ?? false,
             params: normalizeParams(initial.params),
             streamerIds: initial.streamer_ids ?? [],
-            webOverlay: initial.web_overlay ?? false,
             overlayType: initial.overlay_type ?? ['streamer'],
             width: initial.width ?? 800,
             height: initial.height ?? 600,
@@ -437,6 +439,55 @@ const OverlayFormDialog = ({
               sx={{ cursor: 'pointer', userSelect: 'none' }}
             >
               Web Overlay
+            </Typography>
+          </Box>
+        </Box>
+
+        {/* Protected Toggle */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 1,
+            mb: 2,
+          }}
+        >
+          <Typography variant="body2" fontWeight={700}>
+            Access
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Public: anyone with the URL can open the overlay. Protected: only
+            users registered in the database can open it (via their personal
+            link).
+          </Typography>
+          <Box
+            key="protected-overlay"
+            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+          >
+            <input
+              type="checkbox"
+              id="protected-overlay-switch"
+              checked={form.isProtected}
+              onChange={(e) => {
+                setForm((p) => ({
+                  ...p,
+                  isProtected: e.target.checked,
+                }));
+              }}
+              style={{
+                accentColor: '#309abd',
+                width: 16,
+                height: 16,
+                cursor: 'pointer',
+              }}
+            />
+            <Typography
+              component="label"
+              htmlFor="protected-overlay-switch"
+              variant="body2"
+              sx={{ cursor: 'pointer', userSelect: 'none' }}
+            >
+              Protected (registered users only)
             </Typography>
           </Box>
         </Box>
