@@ -15,6 +15,10 @@ const OverlaysSchema = new Schema(
       type: String,
       required: true,
     },
+    access_key: {
+      type: String,
+      default: '',
+    },
     folder_path: {
       type: String,
       required: true,

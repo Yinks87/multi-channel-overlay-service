@@ -7,7 +7,10 @@ import {
   overlayDispatcher,
   registerOverlay,
 } from './overlays/overlays-registry.js';
-import { getActiveOverlays } from './db/services/overlayService.js';
+import {
+  ensureOverlayAccessKeys,
+  getActiveOverlays,
+} from './db/services/overlayService.js';
 import {
   connectToTwitchEventSubs,
   initAppToken,
@@ -53,11 +56,14 @@ async function startService() {
 
     await seedSystemSchemas();
 
+    await ensureOverlayAccessKeys();
+
     // Load and register active overlays from the database
     const activeOverlays = await getActiveOverlays();
     for (const overlay of activeOverlays) {
       registerOverlay({
         routePath: overlay?.route_path,
+        accessKey: overlay?.access_key,
         folderPath: overlay?.folder_path,
         entryFile: overlay?.entry_file,
         overlayId: overlay?.id,

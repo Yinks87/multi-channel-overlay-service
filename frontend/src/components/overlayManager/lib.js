@@ -9,3 +9,8 @@ export function normalizeParams(params) {
     ),
   );
 }
+
+export function getOverlayRoutePath(overlay) {
+  if (overlay.is_protected) return overlay.route_path;
+  return `/${overlay.access_key}${overlay.route_path}`;
+}

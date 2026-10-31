@@ -22,7 +22,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import { fetchOverlayAccessToken, updateOverlay } from '../../api/overlayApi';
 import { useAlert } from '../../contexts/AlertContext';
 import api from '../../api/api';
-import { normalizeParams } from './lib';
+import { getOverlayRoutePath, normalizeParams } from './lib';
 
 const BACKEND_ORIGIN = api.defaults.baseURL;
 const SERVICE_URL =
@@ -30,7 +30,7 @@ const SERVICE_URL =
 
 function buildOverlayUrl(overlay, extraParams = {}, accessToken = null) {
   const url = new URL(
-    `${SERVICE_URL}${overlay.route_path}/${overlay.entry_file}`,
+    `${SERVICE_URL}${getOverlayRoutePath(overlay)}/${overlay.entry_file}`,
     `${BACKEND_ORIGIN}/`,
   );
 
@@ -332,7 +332,7 @@ export const AdminOverlayCard = ({
             flex: 1,
           }}
         >
-          <RouteTag>{overlay.route_path}</RouteTag>
+          <RouteTag>{getOverlayRoutePath(overlay)}</RouteTag>
           {overlay.is_protected && (
             <Chip
               icon={<LockIcon sx={{ fontSize: '11px !important' }} />}

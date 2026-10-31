@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import {
   createOverlay,
+  generateOverlayAccessKey,
   getActiveOverlays,
   getAllOverlays,
   getOverlayById,
@@ -12,6 +13,7 @@ import {
   updateOverlay,
 } from '../../../db/services/overlayService.js';
 import {
+  getRegisteredOverlayRoutePath,
   registerOverlay,
   unregisterOverlay,
 } from '../../../overlays/overlays-registry.js';
@@ -124,10 +126,17 @@ overlayRouter.post(
     }
 
     const overlayId = randomUUID();
+    const accessKey = isProtected ? '' : generateOverlayAccessKey();
+    const registeredRoutePath = getRegisteredOverlayRoutePath(
+      routePath,
+      accessKey,
+      Boolean(isProtected),
+    );
 
     try {
       registerOverlay({
         routePath,
+        accessKey,
         name,
         folderPath,
         entryFile,
@@ -138,24 +147,35 @@ overlayRouter.post(
       return res.status(400).json({ success: false, error: e.message });
     }
 
-    const id = await createOverlay({
-      id: overlayId,
-      routePath,
-      name,
-      folderPath,
-      entryFile,
-      notes,
-      params,
-      streamerIds,
-      webOverlay,
-      isProtected,
-      overlayType,
-      width,
-      height,
-    });
+    let id;
+    try {
+      id = await createOverlay({
+        id: overlayId,
+        routePath,
+        name,
+        folderPath,
+        entryFile,
+        notes,
+        params,
+        streamerIds,
+        webOverlay,
+        isProtected,
+        accessKey,
+        overlayType,
+        width,
+        height,
+      });
+    } catch (e) {
+      try {
+        unregisterOverlay(registeredRoutePath);
+      } catch {
+        // The route may not have been registered.
+      }
+      return next(e);
+    }
 
     if (!id) {
-      unregisterOverlay(routePath);
+      unregisterOverlay(registeredRoutePath);
       return res
         .status(500)
         .json({ success: false, error: 'Failed to add new overlay' });
@@ -181,7 +201,13 @@ overlayRouter.delete(
       }
 
       try {
-        unregisterOverlay(overlay.route_path);
+        unregisterOverlay(
+          getRegisteredOverlayRoutePath(
+            overlay.route_path,
+            overlay.access_key,
+            overlay.is_protected,
+          ),
+        );
       } catch {
         // Already unregistered — not an error
       }
@@ -208,6 +234,13 @@ overlayRouter.patch(
     }
 
     try {
+      const previous = await getOverlayById(id);
+      if (!previous) {
+        return res
+          .status(404)
+          .json({ success: false, error: 'Overlay not found' });
+      }
+
       const existing = await updateOverlay({ id, ...updates });
       if (!existing) {
         return res
@@ -216,7 +249,13 @@ overlayRouter.patch(
       }
       // Always unregister the old route first (silent — may not be registered if was inactive)
       try {
-        unregisterOverlay(existing.route_path);
+        unregisterOverlay(
+          getRegisteredOverlayRoutePath(
+            previous.route_path,
+            previous.access_key,
+            previous.is_protected,
+          ),
+        );
       } catch {
         /** void */
       }
@@ -225,6 +264,7 @@ overlayRouter.patch(
         try {
           registerOverlay({
             routePath: existing.route_path,
+            accessKey: existing.access_key,
             folderPath: existing.folder_path,
             entryFile: existing.entry_file,
             overlayId: existing.id,

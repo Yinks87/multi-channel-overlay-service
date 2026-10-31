@@ -6,8 +6,21 @@ import { verifyOverlayToken } from '../middleware/auth.js';
 
 const registry = new Map();
 
+export function getRegisteredOverlayRoutePath(
+  routePath,
+  accessKey,
+  isProtected = false,
+) {
+  if (isProtected) return routePath;
+  if (!accessKey) {
+    throw new Error('Public overlays require an access key');
+  }
+  return `/${accessKey}${routePath}`;
+}
+
 export function registerOverlay({
   routePath,
+  accessKey,
   folderPath,
   entryFile,
   overlayId,
@@ -19,6 +32,11 @@ export function registerOverlay({
   if (isProtected && !overlayId) {
     throw new Error('Protected overlays require an overlay id');
   }
+  const registeredRoutePath = getRegisteredOverlayRoutePath(
+    routePath,
+    accessKey,
+    isProtected,
+  );
 
   if (!fs.existsSync(folderPath)) {
     throw new Error(`Overlay folder does not exist: ${folderPath}`);
@@ -30,7 +48,7 @@ export function registerOverlay({
   }
 
   const staticMw = express.static(folderPath);
-  registry.set(routePath, {
+  registry.set(registeredRoutePath, {
     folderPath,
     entryFile,
     staticMw,

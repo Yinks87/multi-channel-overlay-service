@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import OverlaysModel from '../schemas/overlays.js';
 import UsersModel from '../schemas/users.js';
 
@@ -21,6 +21,10 @@ function normalizeStreamerIds(ids) {
 
 const VALID_OVERLAY_TYPES = ['admin', 'streamer', 'moderator'];
 
+export function generateOverlayAccessKey() {
+  return randomBytes(16).toString('hex');
+}
+
 function normalizeOverlayType(types) {
   if (!Array.isArray(types)) return ['streamer'];
   const filtered = types.filter((t) => VALID_OVERLAY_TYPES.includes(t));
@@ -33,6 +37,7 @@ function mapOverlayRow(row) {
   const doc = row.toObject ? row.toObject() : { ...row };
   return {
     ...doc,
+    access_key: doc.is_protected ? null : doc.access_key || null,
     params: normalizeParams(doc.params ?? {}),
     streamer_ids: normalizeStreamerIds(doc.streamer_ids ?? []),
     is_protected: Boolean(doc.is_protected),
@@ -50,6 +55,7 @@ export async function createOverlay({
   streamerIds = [],
   webOverlay = false,
   isProtected = false,
+  accessKey = isProtected ? '' : generateOverlayAccessKey(),
   overlayType = ['streamer'],
   width = 800,
   height = 600,
@@ -61,6 +67,7 @@ export async function createOverlay({
     id,
     name,
     route_path: routePath,
+    access_key: accessKey,
     folder_path: folderPath,
     entry_file: entryFile,
     notes,
@@ -146,6 +153,33 @@ export async function getActiveOverlays() {
   return overlays.map(mapOverlayRow);
 }
 
+export async function ensureOverlayAccessKeys() {
+  const overlays = await OverlaysModel.find({
+    is_protected: { $ne: true },
+    $or: [
+      { access_key: { $exists: false } },
+      { access_key: null },
+      { access_key: '' },
+    ],
+  });
+
+  await Promise.all(
+    overlays.map((overlay) =>
+      OverlaysModel.updateOne(
+        {
+          id: overlay.id,
+          $or: [
+            { access_key: { $exists: false } },
+            { access_key: null },
+            { access_key: '' },
+          ],
+        },
+        { $set: { access_key: generateOverlayAccessKey() } },
+      ),
+    ),
+  );
+}
+
 export async function getAllOverlays() {
   const overlays = await OverlaysModel.find({});
   return overlays.map(mapOverlayRow);
@@ -175,8 +209,12 @@ export async function updateOverlay({
   const overlay = await OverlaysModel.findOne({ id });
   if (!overlay) return null;
 
+  const nextIsProtected =
+    isProtected !== undefined ? Boolean(isProtected) : overlay.is_protected;
   const updates = {
     route_path: routePath ?? overlay.route_path,
+    access_key:
+      overlay.access_key || (!nextIsProtected ? generateOverlayAccessKey() : ''),
     name: name ?? overlay.name,
     folder_path: folderPath ?? overlay.folder_path,
     entry_file: entryFile ?? overlay.entry_file,
@@ -187,8 +225,7 @@ export async function updateOverlay({
         ? normalizeStreamerIds(streamerIds)
         : overlay.streamer_ids,
     web_overlay: webOverlay !== undefined ? webOverlay : overlay.web_overlay,
-    is_protected:
-      isProtected !== undefined ? Boolean(isProtected) : overlay.is_protected,
+    is_protected: nextIsProtected,
     overlay_type:
       overlayType !== undefined
         ? normalizeOverlayType(overlayType)

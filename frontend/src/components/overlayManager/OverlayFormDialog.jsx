@@ -456,9 +456,9 @@ const OverlayFormDialog = ({
             Access
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Public: anyone with the URL can open the overlay. Protected: only
-            users registered in the database can open it (via their personal
-            link).
+            Public: anyone with the URL can open the overlay; a random key is
+            added to its URL automatically. Protected: only users registered in
+            the database can open it (via their personal link).
           </Typography>
           <Box
             key="protected-overlay"

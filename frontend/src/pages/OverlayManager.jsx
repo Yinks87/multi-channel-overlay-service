@@ -18,6 +18,7 @@ import {
   AdminOverlayCard,
   StreamerOverlayCard,
 } from '../components/overlayManager/OverlayCards';
+import { getOverlayRoutePath } from '../components/overlayManager/lib';
 
 const BACKEND_ORIGIN = api.defaults.baseURL;
 const SSE_ENDPOINT = import.meta.env.VITE_SSE_ENDPOINT ?? '/clients';
@@ -201,7 +202,8 @@ const OverlayManager = () => {
                 onToggle={load}
                 streamers={streamers}
                 clientCount={
-                  clientCounts[`${o.route_path}/${o.entry_file}`] ?? 0
+                  clientCounts[`${getOverlayRoutePath(o)}/${o.entry_file}`] ??
+                  0
                 }
               />
             ) : (
@@ -210,7 +212,8 @@ const OverlayManager = () => {
                 overlay={o}
                 streamers={streamers}
                 clientCount={
-                  clientCounts[`${o.route_path}/${o.entry_file}`] ?? 0
+                  clientCounts[`${getOverlayRoutePath(o)}/${o.entry_file}`] ??
+                  0
                 }
               />
             ),
