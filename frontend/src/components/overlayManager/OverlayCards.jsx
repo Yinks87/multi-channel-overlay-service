@@ -332,7 +332,7 @@ export const AdminOverlayCard = ({
             flex: 1,
           }}
         >
-          <RouteTag>{getOverlayRoutePath(overlay)}</RouteTag>
+          <RouteTag>{overlay.route_path}</RouteTag>
           {overlay.is_protected && (
             <Chip
               icon={<LockIcon sx={{ fontSize: '11px !important' }} />}
